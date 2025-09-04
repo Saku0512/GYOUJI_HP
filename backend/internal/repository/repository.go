@@ -7,19 +7,24 @@ import (
 
 // Repository は全てのリポジトリインターフェースを統合する
 type Repository struct {
-	Base BaseRepository
-	// 将来的に追加される他のリポジトリ
-	// User UserRepository
-	// Tournament TournamentRepository
-	// Match MatchRepository
+	Base       BaseRepository
+	User       UserRepository
+	Tournament TournamentRepository
+	Match      MatchRepository
 }
 
 // NewRepository は新しいRepositoryインスタンスを作成する
 func NewRepository(db *database.DB) *Repository {
 	baseRepo := NewBaseRepository(db)
+	userRepo := NewUserRepository(db)
+	tournamentRepo := NewTournamentRepository(db)
+	matchRepo := NewMatchRepository(db)
 	
 	return &Repository{
-		Base: baseRepo,
+		Base:       baseRepo,
+		User:       userRepo,
+		Tournament: tournamentRepo,
+		Match:      matchRepo,
 	}
 }
 
