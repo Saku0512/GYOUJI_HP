@@ -1,0 +1,29 @@
+# Go のビルド生成物
+/bin/
+/build/
+/*.exe
+/*.exe~
+/*.dll
+/*.so
+/*.dylib
+
+# Go モジュール
+/go.sum
+
+# IDE/エディタ
+.vscode/
+.idea/
+*.swp
+*.swo
+*.log
+
+# OS 固有ファイル
+.DS_Store
+Thumbs.db
+
+# テストのカバレッジファイル
+*.out
+
+# その他一時ファイル
+*.tmp
+*.temp
