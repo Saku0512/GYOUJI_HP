@@ -1,0 +1,850 @@
+package handler
+
+import (
+	"net/http"
+	"strconv"
+	"strings"
+
+	"backend/internal/models"
+	"backend/internal/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+// TournamentHandler はトーナメント関連のHTTPハンドラー
+type TournamentHandler struct {
+	tournamentService service.TournamentService
+}
+
+// NewTournamentHandler は新しいTournamentHandlerを作成する
+func NewTournamentHandler(tournamentService service.TournamentService) *TournamentHandler {
+	return &TournamentHandler{
+		tournamentService: tournamentService,
+	}
+}
+
+// CreateTournamentRequest はトーナメント作成リクエストの構造体
+type CreateTournamentRequest struct {
+	Sport  string `json:"sport" binding:"required"`
+	Format string `json:"format" binding:"required"`
+}
+
+// UpdateTournamentRequest はトーナメント更新リクエストの構造体
+type UpdateTournamentRequest struct {
+	Format string `json:"format"`
+	Status string `json:"status"`
+}
+
+// SwitchFormatRequest はトーナメント形式切り替えリクエストの構造体
+type SwitchFormatRequest struct {
+	Format string `json:"format" binding:"required"`
+}
+
+// TournamentResponse はトーナメントレスポンスの構造体
+type TournamentResponse struct {
+	*models.Tournament
+	Message string `json:"message,omitempty"`
+}
+
+// TournamentListResponse はトーナメント一覧レスポンスの構造体
+type TournamentListResponse struct {
+	Tournaments []*models.Tournament `json:"tournaments"`
+	Count       int                  `json:"count"`
+	Message     string               `json:"message,omitempty"`
+}
+
+// BracketResponse はブラケットレスポンスの構造体
+type BracketResponse struct {
+	*models.Bracket
+	Message string `json:"message,omitempty"`
+}
+
+// ProgressResponse はトーナメント進行状況レスポンスの構造体
+type ProgressResponse struct {
+	*service.TournamentProgress
+	Message string `json:"message,omitempty"`
+}
+
+// CreateTournament はトーナメント作成エンドポイントハンドラー
+// @Summary トーナメント作成
+// @Description 新しいトーナメントを作成する（管理者のみ）
+// @Tags tournaments
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateTournamentRequest true "トーナメント作成情報"
+// @Success 201 {object} TournamentResponse "作成成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 401 {object} ErrorResponse "認証エラー"
+// @Failure 409 {object} ErrorResponse "競合エラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments [post]
+func (h *TournamentHandler) CreateTournament(c *gin.Context) {
+	var req CreateTournamentRequest
+
+	// リクエストボディをバインド
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "無効なリクエスト形式です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// 入力値の検証
+	if strings.TrimSpace(req.Sport) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "スポーツは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	if strings.TrimSpace(req.Format) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "フォーマットは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// トーナメント作成
+	tournament, err := h.tournamentService.CreateTournament(req.Sport, req.Format)
+	if err != nil {
+		if strings.Contains(err.Error(), "既にアクティブなトーナメントが存在") {
+			c.JSON(http.StatusConflict, ErrorResponse{
+				Error:   "Conflict",
+				Message: err.Error(),
+				Code:    http.StatusConflict,
+			})
+			return
+		}
+		
+		if strings.Contains(err.Error(), "無効な") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの作成に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusCreated, TournamentResponse{
+		Tournament: tournament,
+		Message:    "トーナメントを作成しました",
+	})
+}
+
+// GetTournaments は全トーナメント取得エンドポイントハンドラー
+// @Summary 全トーナメント取得
+// @Description 全てのトーナメントを取得する
+// @Tags tournaments
+// @Produce json
+// @Success 200 {object} TournamentListResponse "取得成功"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments [get]
+func (h *TournamentHandler) GetTournaments(c *gin.Context) {
+	tournaments, err := h.tournamentService.GetAllTournaments()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメント一覧の取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, TournamentListResponse{
+		Tournaments: tournaments,
+		Count:       len(tournaments),
+		Message:     "トーナメント一覧を取得しました",
+	})
+}
+
+// GetTournamentBySport はスポーツ別トーナメント取得エンドポイントハンドラー
+// @Summary スポーツ別トーナメント取得
+// @Description 指定されたスポーツのトーナメントを取得する
+// @Tags tournaments
+// @Produce json
+// @Param sport path string true "スポーツ名" Enums(volleyball,table_tennis,soccer)
+// @Success 200 {object} TournamentResponse "取得成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 404 {object} ErrorResponse "未発見エラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/{sport} [get]
+func (h *TournamentHandler) GetTournamentBySport(c *gin.Context) {
+	sport := c.Param("sport")
+
+	// 入力値の検証
+	if strings.TrimSpace(sport) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "スポーツパラメータは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// トーナメント取得
+	tournament, err := h.tournamentService.GetTournament(sport)
+	if err != nil {
+		if strings.Contains(err.Error(), "見つかりません") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "無効な") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, TournamentResponse{
+		Tournament: tournament,
+		Message:    "トーナメントを取得しました",
+	})
+}
+
+// GetTournamentByID はID別トーナメント取得エンドポイントハンドラー
+// @Summary ID別トーナメント取得
+// @Description 指定されたIDのトーナメントを取得する
+// @Tags tournaments
+// @Produce json
+// @Param id path int true "トーナメントID"
+// @Success 200 {object} TournamentResponse "取得成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 404 {object} ErrorResponse "未発見エラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/id/{id} [get]
+func (h *TournamentHandler) GetTournamentByID(c *gin.Context) {
+	idStr := c.Param("id")
+
+	// IDの変換
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "無効なトーナメントIDです",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// トーナメント取得
+	tournament, err := h.tournamentService.GetTournamentByID(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "見つかりません") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, TournamentResponse{
+		Tournament: tournament,
+		Message:    "トーナメントを取得しました",
+	})
+}
+
+// UpdateTournament はトーナメント更新エンドポイントハンドラー
+// @Summary トーナメント更新
+// @Description 指定されたIDのトーナメントを更新する（管理者のみ）
+// @Tags tournaments
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "トーナメントID"
+// @Param request body UpdateTournamentRequest true "トーナメント更新情報"
+// @Success 200 {object} TournamentResponse "更新成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 401 {object} ErrorResponse "認証エラー"
+// @Failure 404 {object} ErrorResponse "未発見エラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/{id} [put]
+func (h *TournamentHandler) UpdateTournament(c *gin.Context) {
+	idStr := c.Param("id")
+	var req UpdateTournamentRequest
+
+	// IDの変換
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "無効なトーナメントIDです",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// リクエストボディをバインド
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "無効なリクエスト形式です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// 既存のトーナメントを取得
+	tournament, err := h.tournamentService.GetTournamentByID(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "見つかりません") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 更新フィールドを適用
+	if strings.TrimSpace(req.Format) != "" {
+		tournament.Format = req.Format
+	}
+	if strings.TrimSpace(req.Status) != "" {
+		tournament.Status = req.Status
+	}
+
+	// トーナメント更新
+	err = h.tournamentService.UpdateTournament(tournament)
+	if err != nil {
+		if strings.Contains(err.Error(), "無効な") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの更新に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, TournamentResponse{
+		Tournament: tournament,
+		Message:    "トーナメントを更新しました",
+	})
+}
+
+// DeleteTournament はトーナメント削除エンドポイントハンドラー
+// @Summary トーナメント削除
+// @Description 指定されたIDのトーナメントを削除する（管理者のみ）
+// @Tags tournaments
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "トーナメントID"
+// @Success 200 {object} map[string]string "削除成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 401 {object} ErrorResponse "認証エラー"
+// @Failure 404 {object} ErrorResponse "未発見エラー"
+// @Failure 409 {object} ErrorResponse "競合エラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/{id} [delete]
+func (h *TournamentHandler) DeleteTournament(c *gin.Context) {
+	idStr := c.Param("id")
+
+	// IDの変換
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "無効なトーナメントIDです",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// トーナメント削除
+	err = h.tournamentService.DeleteTournament(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "試合が存在する") {
+			c.JSON(http.StatusConflict, ErrorResponse{
+				Error:   "Conflict",
+				Message: err.Error(),
+				Code:    http.StatusConflict,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "見つかりません") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: "削除対象のトーナメントが見つかりません",
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの削除に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, gin.H{
+		"message": "トーナメントを削除しました",
+	})
+}
+
+// GetTournamentBracket はトーナメントブラケット取得エンドポイントハンドラー
+// @Summary トーナメントブラケット取得
+// @Description 指定されたスポーツのトーナメントブラケットを取得する
+// @Tags tournaments
+// @Produce json
+// @Param sport path string true "スポーツ名" Enums(volleyball,table_tennis,soccer)
+// @Success 200 {object} BracketResponse "取得成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 404 {object} ErrorResponse "未発見エラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/{sport}/bracket [get]
+func (h *TournamentHandler) GetTournamentBracket(c *gin.Context) {
+	sport := c.Param("sport")
+
+	// 入力値の検証
+	if strings.TrimSpace(sport) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "スポーツパラメータは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// ブラケット取得
+	bracket, err := h.tournamentService.GetTournamentBracket(sport)
+	if err != nil {
+		if strings.Contains(err.Error(), "見つかりません") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "無効な") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "ブラケットの取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, BracketResponse{
+		Bracket: bracket,
+		Message: "ブラケットを取得しました",
+	})
+}
+
+// SwitchTournamentFormat はトーナメント形式切り替えエンドポイントハンドラー
+// @Summary トーナメント形式切り替え
+// @Description 指定されたスポーツのトーナメント形式を切り替える（卓球の天候条件用、管理者のみ）
+// @Tags tournaments
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param sport path string true "スポーツ名" Enums(table_tennis)
+// @Param request body SwitchFormatRequest true "形式切り替え情報"
+// @Success 200 {object} map[string]string "切り替え成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 401 {object} ErrorResponse "認証エラー"
+// @Failure 404 {object} ErrorResponse "未発見エラー"
+// @Failure 409 {object} ErrorResponse "競合エラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/{sport}/format [put]
+func (h *TournamentHandler) SwitchTournamentFormat(c *gin.Context) {
+	sport := c.Param("sport")
+	var req SwitchFormatRequest
+
+	// 入力値の検証
+	if strings.TrimSpace(sport) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "スポーツパラメータは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// リクエストボディをバインド
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "無効なリクエスト形式です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// 入力値の検証
+	if strings.TrimSpace(req.Format) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "フォーマットは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// トーナメント形式切り替え
+	err := h.tournamentService.SwitchTournamentFormat(sport, req.Format)
+	if err != nil {
+		if strings.Contains(err.Error(), "サポートしていません") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "既に") || strings.Contains(err.Error(), "変更できません") {
+			c.JSON(http.StatusConflict, ErrorResponse{
+				Error:   "Conflict",
+				Message: err.Error(),
+				Code:    http.StatusConflict,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "見つかりません") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "無効な") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメント形式の切り替えに失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, gin.H{
+		"message": "トーナメント形式を切り替えました",
+		"sport":   sport,
+		"format":  req.Format,
+	})
+}
+
+// GetActiveTournaments はアクティブトーナメント取得エンドポイントハンドラー
+// @Summary アクティブトーナメント取得
+// @Description アクティブなトーナメントのみを取得する
+// @Tags tournaments
+// @Produce json
+// @Success 200 {object} TournamentListResponse "取得成功"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/active [get]
+func (h *TournamentHandler) GetActiveTournaments(c *gin.Context) {
+	tournaments, err := h.tournamentService.GetActiveTournaments()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "アクティブトーナメント一覧の取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, TournamentListResponse{
+		Tournaments: tournaments,
+		Count:       len(tournaments),
+		Message:     "アクティブトーナメント一覧を取得しました",
+	})
+}
+
+// GetTournamentProgress はトーナメント進行状況取得エンドポイントハンドラー
+// @Summary トーナメント進行状況取得
+// @Description 指定されたスポーツのトーナメント進行状況を取得する
+// @Tags tournaments
+// @Produce json
+// @Param sport path string true "スポーツ名" Enums(volleyball,table_tennis,soccer)
+// @Success 200 {object} ProgressResponse "取得成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 404 {object} ErrorResponse "未発見エラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/{sport}/progress [get]
+func (h *TournamentHandler) GetTournamentProgress(c *gin.Context) {
+	sport := c.Param("sport")
+
+	// 入力値の検証
+	if strings.TrimSpace(sport) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "スポーツパラメータは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// 進行状況取得
+	progress, err := h.tournamentService.GetTournamentProgress(sport)
+	if err != nil {
+		if strings.Contains(err.Error(), "見つかりません") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "無効な") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメント進行状況の取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, ProgressResponse{
+		TournamentProgress: progress,
+		Message:            "トーナメント進行状況を取得しました",
+	})
+}
+
+// CompleteTournament はトーナメント完了エンドポイントハンドラー
+// @Summary トーナメント完了
+// @Description 指定されたスポーツのトーナメントを完了状態にする（管理者のみ）
+// @Tags tournaments
+// @Produce json
+// @Security BearerAuth
+// @Param sport path string true "スポーツ名" Enums(volleyball,table_tennis,soccer)
+// @Success 200 {object} map[string]string "完了成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 401 {object} ErrorResponse "認証エラー"
+// @Failure 404 {object} ErrorResponse "未発見エラー"
+// @Failure 409 {object} ErrorResponse "競合エラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/{sport}/complete [put]
+func (h *TournamentHandler) CompleteTournament(c *gin.Context) {
+	sport := c.Param("sport")
+
+	// 入力値の検証
+	if strings.TrimSpace(sport) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "スポーツパラメータは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// トーナメント完了
+	err := h.tournamentService.CompleteTournament(sport)
+	if err != nil {
+		if strings.Contains(err.Error(), "既に完了") {
+			c.JSON(http.StatusConflict, ErrorResponse{
+				Error:   "Conflict",
+				Message: err.Error(),
+				Code:    http.StatusConflict,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "完了していない") {
+			c.JSON(http.StatusConflict, ErrorResponse{
+				Error:   "Conflict",
+				Message: err.Error(),
+				Code:    http.StatusConflict,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "見つかりません") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "無効な") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの完了に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, gin.H{
+		"message": "トーナメントを完了しました",
+		"sport":   sport,
+	})
+}
+
+// ActivateTournament はトーナメントアクティブ化エンドポイントハンドラー
+// @Summary トーナメントアクティブ化
+// @Description 指定されたスポーツのトーナメントをアクティブ状態にする（管理者のみ）
+// @Tags tournaments
+// @Produce json
+// @Security BearerAuth
+// @Param sport path string true "スポーツ名" Enums(volleyball,table_tennis,soccer)
+// @Success 200 {object} map[string]string "アクティブ化成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 401 {object} ErrorResponse "認証エラー"
+// @Failure 404 {object} ErrorResponse "未発見エラー"
+// @Failure 409 {object} ErrorResponse "競合エラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/{sport}/activate [put]
+func (h *TournamentHandler) ActivateTournament(c *gin.Context) {
+	sport := c.Param("sport")
+
+	// 入力値の検証
+	if strings.TrimSpace(sport) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "スポーツパラメータは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// トーナメントアクティブ化
+	err := h.tournamentService.ActivateTournament(sport)
+	if err != nil {
+		if strings.Contains(err.Error(), "既にアクティブ") {
+			c.JSON(http.StatusConflict, ErrorResponse{
+				Error:   "Conflict",
+				Message: err.Error(),
+				Code:    http.StatusConflict,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "見つかりません") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "無効な") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントのアクティブ化に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, gin.H{
+		"message": "トーナメントをアクティブ化しました",
+		"sport":   sport,
+	})
+}
