@@ -103,7 +103,8 @@ func (m *AuthMiddleware) RequireAdmin() gin.HandlerFunc {
 	}
 }
 
-// CORSMiddleware はCORS設定を行うミドルウェア
+// CORSMiddleware はCORS設定を行うミドルウェア（廃止予定）
+// 新しい実装では github.com/gin-contrib/cors を使用してください
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -158,8 +159,8 @@ func LoggingMiddleware() gin.HandlerFunc {
 	})
 }
 
-// RateLimitMiddleware は認証エンドポイント用のレート制限ミドルウェア
-// 注意: 本格的な実装では Redis などの外部ストレージを使用することを推奨
+// RateLimitMiddleware は認証エンドポイント用のレート制限ミドルウェア（廃止予定）
+// 新しい実装では router パッケージの rateLimitMiddleware を使用してください
 func RateLimitMiddleware() gin.HandlerFunc {
 	// 簡易的なインメモリレート制限（本番環境では Redis 等を使用）
 	return func(c *gin.Context) {
