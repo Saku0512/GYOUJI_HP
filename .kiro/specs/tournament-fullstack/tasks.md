@@ -61,7 +61,12 @@
     - _要件: 3.3, 3.4, 4.2_
 
 - [ ] 3. 状態管理ストアの実装
-  - [ ] 3.1 認証ストアの作成
+  - [x] 3.1 認証ストアの作成
+
+
+
+
+
     - authStore の実装（isAuthenticated, token, user, loading 状態管理）
     - login, logout, checkAuthStatus, refreshToken アクション実装
     - ローカルストレージでのトークン永続化
