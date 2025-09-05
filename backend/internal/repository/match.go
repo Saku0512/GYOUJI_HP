@@ -36,6 +36,9 @@ type MatchRepository interface {
 	// 統計・集計
 	CountByTournament(tournamentID int) (int, error)
 	CountByStatus(status string) (int, error)
+	
+	// 一括削除
+	DeleteByTournament(tournamentID int) error
 }
 
 // matchRepositoryImpl はMatchRepositoryの実装
@@ -511,4 +514,26 @@ func (r *matchRepositoryImpl) scanMatches(rows *sql.Rows) ([]*models.Match, erro
 	}
 	
 	return matches, nil
+}
+
+// DeleteByTournament はトーナメントに関連する全ての試合を削除する
+func (r *matchRepositoryImpl) DeleteByTournament(tournamentID int) error {
+	if tournamentID <= 0 {
+		return NewRepositoryError(ErrTypeValidation, "無効なトーナメントIDです", nil)
+	}
+	
+	query := `DELETE FROM matches WHERE tournament_id = ?`
+	
+	result, err := r.base.ExecQuery(query, tournamentID)
+	if err != nil {
+		return NewRepositoryError(ErrTypeQuery, "トーナメント関連試合の削除に失敗しました", err)
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return NewRepositoryError(ErrTypeQuery, "削除された試合数の取得に失敗しました", err)
+	}
+	
+	log.Printf("トーナメント %d の試合を削除しました: %d件", tournamentID, rowsAffected)
+	return nil
 }

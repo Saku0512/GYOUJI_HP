@@ -459,6 +459,30 @@ func (m *MockMatchRepository) CountByStatus(status string) (int, error) {
 	return count, nil
 }
 
+func (m *MockMatchRepository) DeleteByTournament(tournamentID int) error {
+	if m.err != nil {
+		return m.err
+	}
+	
+	// 削除対象の試合を特定
+	toDelete := make([]int, 0)
+	for id, match := range m.matches {
+		if match.TournamentID == tournamentID {
+			toDelete = append(toDelete, id)
+		}
+	}
+	
+	// 試合を削除
+	for _, id := range toDelete {
+		delete(m.matches, id)
+	}
+	
+	// カウントをリセット
+	m.matchCount[tournamentID] = 0
+	
+	return nil
+}
+
 func (m *MockMatchRepository) SetError(err error) {
 	m.err = err
 }
