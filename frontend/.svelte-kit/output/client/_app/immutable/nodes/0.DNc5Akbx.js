@@ -1,0 +1,1 @@
+import"../chunks/DsnmJJEf.js";import"../chunks/DKpEfF5J.js";import{h as o,l as s,j as l,k as f,m,r as d}from"../chunks/BkOiC1l7.js";function c(r,t,a,e,u){o&&s();var n=t.$$slots?.[a],i=!1;n===!0&&(n=t.children,i=!0),n===void 0||n(r,i?()=>e:e)}var h=l('<main class="svelte-theyqk"><!></main>');function y(r,t){var a=h(),e=m(a);c(e,t,"default",{}),d(a),f(r,a)}export{y as component};

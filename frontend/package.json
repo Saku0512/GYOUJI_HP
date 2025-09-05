@@ -1,17 +1,35 @@
 {
-  "name": "frontend",
+  "name": "tournament-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite dev",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "lint": "eslint .",
+    "format": "prettier --write ."
   },
   "devDependencies": {
+    "@sveltejs/adapter-auto": "^3.3.1",
+    "@sveltejs/kit": "^2.14.0",
     "@sveltejs/vite-plugin-svelte": "^6.1.1",
+    "@types/node": "^22.10.5",
+    "@typescript-eslint/eslint-plugin": "^8.42.0",
+    "@typescript-eslint/parser": "^8.42.0",
+    "eslint": "^9.18.0",
+    "eslint-plugin-svelte": "^3.12.1",
+    "prettier": "^3.4.2",
+    "prettier-plugin-svelte": "^3.3.2",
     "rollup": "^3.29.5",
     "svelte": "^5.38.1",
+    "svelte-check": "^4.3.1",
+    "typescript": "^5.7.3",
     "vite": "^7.1.2"
+  },
+  "dependencies": {
+    "globals": "^16.3.0"
   }
 }
