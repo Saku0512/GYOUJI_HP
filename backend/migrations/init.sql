@@ -10,13 +10,13 @@ USE tournament_db;
 
 -- マイグレーション実行順序
 -- 1. ユーザーテーブル
-SOURCE 001_create_users_table.sql;
+SOURCE /docker-entrypoint-initdb.d/001_create_users_table.sql;
 
 -- 2. トーナメントテーブル
-SOURCE 002_create_tournaments_table.sql;
+SOURCE /docker-entrypoint-initdb.d/002_create_tournaments_table.sql;
 
 -- 3. 試合テーブル（外部キー制約があるため最後）
-SOURCE 003_create_matches_table.sql;
+SOURCE /docker-entrypoint-initdb.d/003_create_matches_table.sql;
 
 -- 初期データの挿入
 -- デフォルト管理者ユーザーの作成（パスワード: admin123）

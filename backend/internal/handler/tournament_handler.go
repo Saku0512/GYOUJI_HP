@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -231,18 +232,24 @@ func (h *TournamentHandler) CreateTournament(c *gin.Context) {
 	}
 
 	// トーナメント作成
-	tournament, err := h.tournamentService.CreateTournament(req.Sport, req.Format)
+	tournament := &models.Tournament{
+		Sport:  req.Sport,
+		Format: req.Format,
+		Status: models.TournamentStatusRegistration, // デフォルトステータス
+	}
+	
+	err := h.tournamentService.CreateTournament(context.Background(), tournament)
 	if err != nil {
-		if strings.Contains(err.Error(), "既にアクティブなトーナメントが存在") {
+		if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "既に") {
 			c.JSON(http.StatusConflict, ErrorResponse{
 				Error:   "Conflict",
-				Message: err.Error(),
+				Message: "既にアクティブなトーナメントが存在します",
 				Code:    http.StatusConflict,
 			})
 			return
 		}
 		
-		if strings.Contains(err.Error(), "無効な") {
+		if strings.Contains(err.Error(), "無効な") || strings.Contains(err.Error(), "validation") {
 			c.JSON(http.StatusBadRequest, ErrorResponse{
 				Error:   "Bad Request",
 				Message: err.Error(),
@@ -276,7 +283,7 @@ func (h *TournamentHandler) CreateTournament(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse "サーバーエラー"
 // @Router /api/tournaments [get]
 func (h *TournamentHandler) GetTournaments(c *gin.Context) {
-	tournaments, err := h.tournamentService.GetAllTournaments()
+	tournaments, err := h.tournamentService.GetTournaments(context.Background(), 100, 0)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "Internal Server Error",
@@ -319,13 +326,13 @@ func (h *TournamentHandler) GetTournamentBySport(c *gin.Context) {
 		return
 	}
 
-	// トーナメント取得
-	tournament, err := h.tournamentService.GetTournament(sport)
+	// スポーツ別トーナメント取得
+	tournaments, err := h.tournamentService.GetTournamentBySport(context.Background(), sport, 1, 0)
 	if err != nil {
-		if strings.Contains(err.Error(), "見つかりません") {
+		if strings.Contains(err.Error(), "見つかりません") || strings.Contains(err.Error(), "not found") {
 			c.JSON(http.StatusNotFound, ErrorResponse{
 				Error:   "Not Found",
-				Message: err.Error(),
+				Message: "指定されたスポーツのトーナメントが見つかりません",
 				Code:    http.StatusNotFound,
 			})
 			return
@@ -347,6 +354,18 @@ func (h *TournamentHandler) GetTournamentBySport(c *gin.Context) {
 		})
 		return
 	}
+	
+	if len(tournaments) == 0 {
+		c.JSON(http.StatusNotFound, ErrorResponse{
+			Error:   "Not Found",
+			Message: "指定されたスポーツのトーナメントが見つかりません",
+			Code:    http.StatusNotFound,
+		})
+		return
+	}
+	
+	tournament := tournaments[0]
+
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, TournamentResponse{
@@ -382,7 +401,7 @@ func (h *TournamentHandler) GetTournamentByID(c *gin.Context) {
 	}
 
 	// トーナメント取得
-	tournament, err := h.tournamentService.GetTournamentByID(id)
+	tournament, err := h.tournamentService.GetTournament(context.Background(), uint(id))
 	if err != nil {
 		if strings.Contains(err.Error(), "見つかりません") {
 			c.JSON(http.StatusNotFound, ErrorResponse{
@@ -450,7 +469,7 @@ func (h *TournamentHandler) UpdateTournament(c *gin.Context) {
 	}
 
 	// 既存のトーナメントを取得
-	tournament, err := h.tournamentService.GetTournamentByID(id)
+	tournament, err := h.tournamentService.GetTournament(context.Background(), uint(id))
 	if err != nil {
 		if strings.Contains(err.Error(), "見つかりません") {
 			c.JSON(http.StatusNotFound, ErrorResponse{
@@ -478,7 +497,7 @@ func (h *TournamentHandler) UpdateTournament(c *gin.Context) {
 	}
 
 	// トーナメント更新
-	err = h.tournamentService.UpdateTournament(tournament)
+	err = h.tournamentService.UpdateTournament(context.Background(), uint(id), tournament)
 	if err != nil {
 		if strings.Contains(err.Error(), "無効な") {
 			c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -534,7 +553,7 @@ func (h *TournamentHandler) DeleteTournament(c *gin.Context) {
 	}
 
 	// トーナメント削除
-	err = h.tournamentService.DeleteTournament(id)
+	err = h.tournamentService.DeleteTournament(context.Background(), uint(id))
 	if err != nil {
 		if strings.Contains(err.Error(), "試合が存在する") {
 			c.JSON(http.StatusConflict, ErrorResponse{
@@ -592,8 +611,64 @@ func (h *TournamentHandler) GetTournamentBracket(c *gin.Context) {
 		return
 	}
 
+	// スポーツ別トーナメント取得
+	tournaments, err := h.tournamentService.GetTournamentBySport(context.Background(), sport, 1, 0)
+	if err != nil {
+		if strings.Contains(err.Error(), "見つかりません") || strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: "指定されたスポーツのトーナメントが見つかりません",
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "無効な") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+	
+	if len(tournaments) == 0 {
+		c.JSON(http.StatusNotFound, ErrorResponse{
+			Error:   "Not Found",
+			Message: "指定されたスポーツのトーナメントが見つかりません",
+			Code:    http.StatusNotFound,
+		})
+		return
+	}
+	
+	tournament := tournaments[0]
+	
 	// ブラケット取得
-	bracket, err := h.tournamentService.GetTournamentBracket(sport)
+	matches, err := h.tournamentService.GetBracket(context.Background(), uint(tournament.ID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "ブラケットの取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+	
+	// マッチデータをブラケット形式に変換
+	bracket := &models.Bracket{
+		TournamentID: tournament.ID,
+		Sport:        tournament.Sport,
+		Format:       tournament.Format,
+		Rounds:       convertMatchesToRounds(matches),
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), "見つかりません") {
 			c.JSON(http.StatusNotFound, ErrorResponse{
@@ -679,8 +754,51 @@ func (h *TournamentHandler) SwitchTournamentFormat(c *gin.Context) {
 		return
 	}
 
-	// トーナメント形式切り替え
-	err := h.tournamentService.SwitchTournamentFormat(sport, req.Format)
+	// スポーツ別トーナメント取得
+	tournaments, err := h.tournamentService.GetTournamentBySport(context.Background(), sport, 1, 0)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+	
+	if len(tournaments) == 0 {
+		c.JSON(http.StatusNotFound, ErrorResponse{
+			Error:   "Not Found",
+			Message: "指定されたスポーツのトーナメントが見つかりません",
+			Code:    http.StatusNotFound,
+		})
+		return
+	}
+	
+	tournament := tournaments[0]
+	
+	// 卓球以外はサポートしない
+	if sport != "table_tennis" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "形式切り替えは卓球のみサポートしています",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+	
+	// 既に同じ形式の場合
+	if tournament.Format == req.Format {
+		c.JSON(http.StatusConflict, ErrorResponse{
+			Error:   "Conflict",
+			Message: "既に指定された形式です",
+			Code:    http.StatusConflict,
+		})
+		return
+	}
+	
+	// トーナメント形式更新
+	tournament.Format = req.Format
+	err = h.tournamentService.UpdateTournament(context.Background(), uint(tournament.ID), tournament)
 	if err != nil {
 		if strings.Contains(err.Error(), "サポートしていません") {
 			c.JSON(http.StatusBadRequest, ErrorResponse{
@@ -726,21 +844,10 @@ func (h *TournamentHandler) SwitchTournamentFormat(c *gin.Context) {
 		return
 	}
 
-	// 更新されたトーナメントを取得
-	updatedTournament, err := h.tournamentService.GetTournamentBySport(sport)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Internal Server Error",
-			Message: "更新されたトーナメント情報の取得に失敗しました",
-			Code:    http.StatusInternalServerError,
-		})
-		return
-	}
-
 	// 成功レスポンス
 	c.JSON(http.StatusOK, TournamentResponse{
 		Success: true,
-		Data:    convertToSwaggerTournament(updatedTournament),
+		Data:    convertToSwaggerTournament(tournament),
 		Message: "トーナメント形式を切り替えました",
 	})
 }
@@ -754,7 +861,7 @@ func (h *TournamentHandler) SwitchTournamentFormat(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse "サーバーエラー"
 // @Router /api/tournaments/active [get]
 func (h *TournamentHandler) GetActiveTournaments(c *gin.Context) {
-	tournaments, err := h.tournamentService.GetActiveTournaments()
+	tournaments, err := h.tournamentService.GetTournamentBySport(context.Background(), "active", 100, 0)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "Internal Server Error",
@@ -861,8 +968,41 @@ func (h *TournamentHandler) CompleteTournament(c *gin.Context) {
 		return
 	}
 
+	// スポーツ別トーナメント取得
+	tournaments, err := h.tournamentService.GetTournamentBySport(context.Background(), sport, 1, 0)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+	
+	if len(tournaments) == 0 {
+		c.JSON(http.StatusNotFound, ErrorResponse{
+			Error:   "Not Found",
+			Message: "指定されたスポーツのトーナメントが見つかりません",
+			Code:    http.StatusNotFound,
+		})
+		return
+	}
+	
+	tournament := tournaments[0]
+	
+	// 既に完了している場合
+	if tournament.Status == "completed" {
+		c.JSON(http.StatusConflict, ErrorResponse{
+			Error:   "Conflict",
+			Message: "既に完了しています",
+			Code:    http.StatusConflict,
+		})
+		return
+	}
+	
 	// トーナメント完了
-	err := h.tournamentService.CompleteTournament(sport)
+	tournament.Status = "completed"
+	err = h.tournamentService.UpdateTournament(context.Background(), uint(tournament.ID), tournament)
 	if err != nil {
 		if strings.Contains(err.Error(), "既に完了") {
 			c.JSON(http.StatusConflict, ErrorResponse{
@@ -908,21 +1048,10 @@ func (h *TournamentHandler) CompleteTournament(c *gin.Context) {
 		return
 	}
 
-	// 更新されたトーナメントを取得
-	updatedTournament, err := h.tournamentService.GetTournamentBySport(sport)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Internal Server Error",
-			Message: "更新されたトーナメント情報の取得に失敗しました",
-			Code:    http.StatusInternalServerError,
-		})
-		return
-	}
-
 	// 成功レスポンス
 	c.JSON(http.StatusOK, TournamentResponse{
 		Success: true,
-		Data:    convertToSwaggerTournament(updatedTournament),
+		Data:    convertToSwaggerTournament(tournament),
 		Message: "トーナメントを完了しました",
 	})
 }
@@ -954,8 +1083,41 @@ func (h *TournamentHandler) ActivateTournament(c *gin.Context) {
 		return
 	}
 
+	// スポーツ別トーナメント取得
+	tournaments, err := h.tournamentService.GetTournamentBySport(context.Background(), sport, 1, 0)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+	
+	if len(tournaments) == 0 {
+		c.JSON(http.StatusNotFound, ErrorResponse{
+			Error:   "Not Found",
+			Message: "指定されたスポーツのトーナメントが見つかりません",
+			Code:    http.StatusNotFound,
+		})
+		return
+	}
+	
+	tournament := tournaments[0]
+	
+	// 既にアクティブの場合
+	if tournament.Status == "active" {
+		c.JSON(http.StatusConflict, ErrorResponse{
+			Error:   "Conflict",
+			Message: "既にアクティブです",
+			Code:    http.StatusConflict,
+		})
+		return
+	}
+	
 	// トーナメントアクティブ化
-	err := h.tournamentService.ActivateTournament(sport)
+	tournament.Status = "active"
+	err = h.tournamentService.UpdateTournament(context.Background(), uint(tournament.ID), tournament)
 	if err != nil {
 		if strings.Contains(err.Error(), "既にアクティブ") {
 			c.JSON(http.StatusConflict, ErrorResponse{
@@ -992,21 +1154,31 @@ func (h *TournamentHandler) ActivateTournament(c *gin.Context) {
 		return
 	}
 
-	// 更新されたトーナメントを取得
-	updatedTournament, err := h.tournamentService.GetTournamentBySport(sport)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Internal Server Error",
-			Message: "更新されたトーナメント情報の取得に失敗しました",
-			Code:    http.StatusInternalServerError,
-		})
-		return
-	}
-
 	// 成功レスポンス
 	c.JSON(http.StatusOK, TournamentResponse{
 		Success: true,
-		Data:    convertToSwaggerTournament(updatedTournament),
+		Data:    convertToSwaggerTournament(tournament),
 		Message: "トーナメントをアクティブ化しました",
 	})
+}
+
+// convertMatchesToRounds はマッチ配列をラウンド配列に変換する
+func convertMatchesToRounds(matches []*models.Match) []models.Round {
+	roundMap := make(map[string][]models.Match)
+	
+	// ラウンド別にマッチを分類
+	for _, match := range matches {
+		roundMap[match.Round] = append(roundMap[match.Round], *match)
+	}
+	
+	// ラウンド配列を作成
+	rounds := make([]models.Round, 0, len(roundMap))
+	for roundName, roundMatches := range roundMap {
+		rounds = append(rounds, models.Round{
+			Name:    roundName,
+			Matches: roundMatches,
+		})
+	}
+	
+	return rounds
 }

@@ -20,8 +20,9 @@ const (
 
 // トーナメントステータスの定数
 const (
-	TournamentStatusActive    = "active"
-	TournamentStatusCompleted = "completed"
+	TournamentStatusRegistration = "registration"
+	TournamentStatusActive       = "active"
+	TournamentStatusCompleted    = "completed"
 )
 
 // 試合ステータスの定数
@@ -74,6 +75,7 @@ func IsValidTournamentFormat(format string) bool {
 // 有効なトーナメントステータスかどうかを判定する
 func IsValidTournamentStatus(status string) bool {
 	validStatuses := []string{
+		TournamentStatusRegistration,
 		TournamentStatusActive,
 		TournamentStatusCompleted,
 	}

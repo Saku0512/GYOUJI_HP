@@ -3,7 +3,6 @@ package router
 import (
 	"time"
 
-	"backend/docs"
 	"backend/internal/errors"
 	"backend/internal/handler"
 	"backend/internal/logger"
@@ -11,8 +10,6 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/swaggo/files"
-	"github.com/swaggo/gin-swagger"
 	"golang.org/x/time/rate"
 )
 
@@ -197,20 +194,11 @@ func (r *Router) setupMatchRoutes(protected *gin.RouterGroup, authMiddleware *ha
 
 // setupSwaggerRoutes はSwagger UIのルートを設定する
 func (r *Router) setupSwaggerRoutes() {
-	// Swagger UIエンドポイント
-	r.engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	
-	// APIドキュメントのルートリダイレクト
-	r.engine.GET("/docs", func(c *gin.Context) {
-		c.Redirect(302, "/swagger/index.html")
-	})
-	
-	// ルートからドキュメントへのリダイレクト（開発用）
+	// 開発用のルートエンドポイント（Swagger UIは後で追加）
 	r.engine.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message":     "Tournament Backend API",
 			"version":     "1.0.0",
-			"docs":        "/swagger/index.html",
 			"health":      "/health",
 			"api_prefix":  "/api",
 		})

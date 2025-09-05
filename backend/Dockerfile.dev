@@ -1,0 +1,29 @@
+# 開発環境用Dockerfile
+FROM golang:1.24.2-alpine
+
+# 必要なパッケージをインストール
+RUN apk update && apk add --no-cache \
+    git \
+    ca-certificates \
+    tzdata \
+    netcat-openbsd \
+    && rm -rf /var/cache/apk/*
+
+# 作業ディレクトリを設定
+WORKDIR /app
+
+# Go modulesの依存関係をコピーしてダウンロード
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+# Air（ホットリロードツール）をインストール
+RUN go install github.com/air-verse/air@latest
+
+# ソースコードをコピー
+COPY . .
+
+# ポート8080を公開
+EXPOSE 8080
+
+# Airを使用してホットリロードでアプリケーションを実行
+CMD ["air", "-c", ".air.toml"]

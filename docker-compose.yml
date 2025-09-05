@@ -24,9 +24,83 @@ services:
     networks:
       - web
 
+  # MySQL データベースサービス
+  mysql:
+    image: mysql:8.0
+    container_name: tournament-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - web
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      timeout: 20s
+      retries: 10
+
+  # バックエンドAPIサービス
+  backend:
+    build: ./backend
+    container_name: tournament-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8080 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS:-24}
+      JWT_ISSUER: ${JWT_ISSUER:-tournament-backend}
+      SERVER_PORT: 8080
+      SERVER_HOST: 0.0.0.0
+    ports:
+      - "8081:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      
+      # API用HTTPルーター
+      - "traefik.http.routers.backend-http.rule=Host(`nitsche-gyouji.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-http.entrypoints=web"
+      - "traefik.http.routers.backend-http.middlewares=redirect-to-https"
+      
+      # API用HTTPSルーター
+      - "traefik.http.routers.backend-https.rule=Host(`nitsche-gyouji.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-https.entrypoints=websecure"
+      - "traefik.http.routers.backend-https.tls.certresolver=myresolver"
+      
+      # サービス設定
+      - "traefik.http.services.backend.loadbalancer.server.port=8080"
+    networks:
+      - web
+      - backend
+
   frontend:
     build: ./frontend
     container_name: gyouji-hp-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
     labels:
       - "traefik.enable=true"
 
@@ -49,6 +123,12 @@ services:
     networks:
       - web
 
+volumes:
+  mysql_data:
+    driver: local
+
 networks:
   web:
+    driver: bridge
+  backend:
     driver: bridge

@@ -39,7 +39,7 @@ func main() {
 		logger.Any("jwt_expiration", cfg.GetJWTExpiration()),
 	)
 
-	// データベース接続の初期化
+	// データベース接続の初期化（リトライ機能付き）
 	dbConfig := database.Config{
 		Host:     cfg.Database.Host,
 		Port:     fmt.Sprintf("%d", cfg.Database.Port),
@@ -49,7 +49,7 @@ func main() {
 		Charset:  "utf8mb4",
 	}
 
-	db, err := database.NewConnection(dbConfig)
+	db, err := connectWithRetry(dbConfig, log)
 	if err != nil {
 		log.Fatal("データベース接続の初期化に失敗しました", logger.Err(err))
 	}
@@ -68,11 +68,12 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	tournamentRepo := repository.NewTournamentRepository(db)
 	matchRepo := repository.NewMatchRepository(db)
+	teamRepo := repository.NewTeamRepository(db)
 
 	// サービスの初期化
 	authService := service.NewAuthService(userRepo, cfg)
-	tournamentService := service.NewTournamentService(tournamentRepo, matchRepo)
-	matchService := service.NewMatchService(matchRepo, tournamentRepo)
+	tournamentService := service.NewTournamentService(tournamentRepo, teamRepo, matchRepo)
+	matchService := service.NewMatchService(matchRepo)
 
 	// ルーターの初期化
 	appRouter := router.NewRouter(authService, tournamentService, matchService)
@@ -117,14 +118,8 @@ func main() {
 func runMigrations(db *database.DB, log logger.Logger) error {
 	log.Info("データベースマイグレーションを実行しています...")
 
-	// backendディレクトリを見つける
-	backendDir, err := findBackendDirectory()
-	if err != nil {
-		return fmt.Errorf("backendディレクトリが見つかりません: %v", err)
-	}
-
-	// マイグレーションディレクトリのパス
-	migrationDir := filepath.Join(backendDir, "migrations")
+	// マイグレーションディレクトリのパスを決定
+	migrationDir := findMigrationDirectory(log)
 	log.Info("マイグレーションディレクトリを設定しました", logger.String("path", migrationDir))
 
 	// マイグレーションファイルのパス
@@ -168,7 +163,29 @@ func executeMigrationFile(db *database.DB, filename string, log logger.Logger) e
 	return nil
 }
 
-// findBackendDirectory はbackendディレクトリを見つける
+// findMigrationDirectory はマイグレーションディレクトリのパスを見つける
+func findMigrationDirectory(log logger.Logger) string {
+	// 本番環境（Docker）では /migrations を使用
+	prodMigrationDir := "/migrations"
+	if _, err := os.Stat(prodMigrationDir); err == nil {
+		log.Info("本番環境のマイグレーションディレクトリを使用", logger.String("path", prodMigrationDir))
+		return prodMigrationDir
+	}
+
+	// 開発環境では相対パスでbackendディレクトリを探す
+	if backendDir, err := findBackendDirectory(); err == nil {
+		devMigrationDir := filepath.Join(backendDir, "migrations")
+		log.Info("開発環境のマイグレーションディレクトリを使用", logger.String("path", devMigrationDir))
+		return devMigrationDir
+	}
+
+	// フォールバック: 現在のディレクトリからの相対パス
+	fallbackDir := "./migrations"
+	log.Warn("フォールバックのマイグレーションディレクトリを使用", logger.String("path", fallbackDir))
+	return fallbackDir
+}
+
+// findBackendDirectory はbackendディレクトリを見つける（開発環境用）
 func findBackendDirectory() (string, error) {
 	// 現在のワーキングディレクトリから開始
 	currentDir, err := os.Getwd()
@@ -200,6 +217,37 @@ func findBackendDirectory() (string, error) {
 	}
 
 	return "", fmt.Errorf("backendディレクトリが見つかりません（検索開始: %s）", currentDir)
+}
+
+// connectWithRetry はリトライ機能付きでデータベースに接続する
+func connectWithRetry(config database.Config, log logger.Logger) (*database.DB, error) {
+	maxRetries := 30
+	retryInterval := 2 * time.Second
+
+	for i := 0; i < maxRetries; i++ {
+		log.Info("データベース接続を試行中", 
+			logger.Int("attempt", i+1), 
+			logger.Int("max_retries", maxRetries),
+			logger.String("host", config.Host),
+			logger.String("port", config.Port),
+			logger.String("database", config.Database))
+
+		db, err := database.NewConnection(config)
+		if err == nil {
+			log.Info("データベース接続に成功しました")
+			return db, nil
+		}
+
+		log.Warn("データベース接続に失敗しました。リトライします...", 
+			logger.Err(err),
+			logger.Int("retry_in_seconds", int(retryInterval.Seconds())))
+
+		if i < maxRetries-1 {
+			time.Sleep(retryInterval)
+		}
+	}
+
+	return nil, fmt.Errorf("データベース接続のリトライ回数が上限に達しました（%d回試行）", maxRetries)
 }
 
 // isBackendDirectory は指定されたディレクトリがbackendディレクトリかどうかをチェック

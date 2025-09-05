@@ -68,7 +68,7 @@ func Load() (*Config, error) {
 
 	// Validate required configuration
 	if config.Database.Password == "" {
-		return nil, fmt.Errorf("DB_PASSWORD environment variable is required")
+		fmt.Println("WARNING: DB_PASSWORD is empty. This may cause connection issues.")
 	}
 
 	if config.JWT.SecretKey == "your-secret-key-change-in-production" {

@@ -1,0 +1,43 @@
+# Git関連
+.git
+.gitignore
+
+# ドキュメント
+README.md
+docs/
+
+# テスト関連
+*_test.go
+integration_test/
+test_finder
+
+# 開発環境ファイル
+.env
+.env.test
+.env.example
+
+# ビルド成果物
+main
+server
+
+# IDE設定
+.vscode/
+.idea/
+
+# ログファイル
+*.log
+
+# 一時ファイル
+*.tmp
+*.temp
+
+# OS固有ファイル
+.DS_Store
+Thumbs.db
+
+# Node.js関連（もしあれば）
+node_modules/
+npm-debug.log
+
+# Go関連
+vendor/

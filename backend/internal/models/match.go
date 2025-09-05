@@ -20,6 +20,8 @@ type Match struct {
 	Status       string     `json:"status" db:"status"`
 	ScheduledAt  time.Time  `json:"scheduled_at" db:"scheduled_at"`
 	CompletedAt  *time.Time `json:"completed_at" db:"completed_at"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // MatchResult は試合結果を表す構造体

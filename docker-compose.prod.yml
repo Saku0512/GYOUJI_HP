@@ -1,0 +1,61 @@
+# 本番環境用のdocker-compose設定
+version: '3.8'
+
+services:
+  # 本番環境用MySQL設定
+  mysql:
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_prod_data:/var/lib/mysql
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    # セキュリティ: 本番環境ではポートを公開しない
+    ports: []
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 本番環境用バックエンド設定
+  backend:
+    restart: always
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS}
+      JWT_ISSUER: ${JWT_ISSUER}
+      SERVER_PORT: 8080
+      SERVER_HOST: 0.0.0.0
+      GIN_MODE: release
+    # セキュリティ: 本番環境では直接ポートアクセスを無効化
+    ports: []
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 本番環境用フロントエンド設定
+  frontend:
+    restart: always
+    environment:
+      NODE_ENV: production
+      VITE_API_BASE_URL: https://nitsche-gyouji.com/api
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mysql_prod_data:
+    driver: local
