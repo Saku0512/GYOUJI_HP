@@ -23,27 +23,29 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 
 // LoginRequest はログインリクエストの構造体
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"username" binding:"required" example:"admin"`        // ユーザー名
+	Password string `json:"password" binding:"required" example:"password"`     // パスワード
 }
 
 // LoginResponse はログインレスポンスの構造体
 type LoginResponse struct {
-	Token    string `json:"token"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
-	Message  string `json:"message"`
+	Success  bool   `json:"success" example:"true"`                                                    // 成功フラグ
+	Token    string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`                  // JWTトークン
+	Username string `json:"username" example:"admin"`                                                  // ユーザー名
+	Role     string `json:"role" example:"admin"`                                                      // ユーザーロール
+	Message  string `json:"message" example:"ログインに成功しました"`                                          // メッセージ
 }
 
 // RefreshTokenRequest はトークンリフレッシュリクエストの構造体
 type RefreshTokenRequest struct {
-	Token string `json:"token" binding:"required"`
+	Token string `json:"token" binding:"required" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."` // 既存のJWTトークン
 }
 
 // RefreshTokenResponse はトークンリフレッシュレスポンスの構造体
 type RefreshTokenResponse struct {
-	Token   string `json:"token"`
-	Message string `json:"message"`
+	Success bool   `json:"success" example:"true"`                                                    // 成功フラグ
+	Token   string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`                  // 新しいJWTトークン
+	Message string `json:"message" example:"トークンのリフレッシュに成功しました"`                                // メッセージ
 }
 
 // ErrorResponse は統一されたエラーレスポンスの構造体

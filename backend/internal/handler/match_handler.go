@@ -52,21 +52,124 @@ type SubmitMatchResultRequest struct {
 
 // MatchResponse は試合レスポンスの構造体
 type MatchResponse struct {
-	*models.Match
-	Message string `json:"message,omitempty"`
+	Success bool   `json:"success" example:"true"`          // 成功フラグ
+	Message string `json:"message" example:"試合情報を取得しました"` // メッセージ
+	Data    Match  `json:"data"`                            // 試合データ
 }
 
 // MatchListResponse は試合一覧レスポンスの構造体
 type MatchListResponse struct {
-	Matches []*models.Match `json:"matches"`
-	Count   int             `json:"count"`
-	Message string          `json:"message,omitempty"`
+	Success bool    `json:"success" example:"true"`          // 成功フラグ
+	Message string  `json:"message" example:"試合一覧を取得しました"` // メッセージ
+	Data    []Match `json:"data"`                            // 試合データ配列
+	Count   int     `json:"count" example:"10"`              // 件数
+}
+
+// Match はSwagger用の試合構造体
+type Match struct {
+	ID           int     `json:"id" example:"1"`                                      // 試合ID
+	TournamentID int     `json:"tournament_id" example:"1"`                           // トーナメントID
+	Round        string  `json:"round" example:"1st_round"`                           // ラウンド名
+	Team1        string  `json:"team1" example:"チームA"`                               // チーム1
+	Team2        string  `json:"team2" example:"チームB"`                               // チーム2
+	Score1       *int    `json:"score1" example:"3"`                                 // チーム1のスコア
+	Score2       *int    `json:"score2" example:"1"`                                 // チーム2のスコア
+	Winner       *string `json:"winner" example:"チームA"`                             // 勝者
+	Status       string  `json:"status" example:"pending"`                           // 試合ステータス
+	ScheduledAt  string  `json:"scheduled_at" example:"2024-01-01T10:00:00Z"`       // 予定日時
+	CompletedAt  *string `json:"completed_at" example:"2024-01-01T11:00:00Z"`       // 完了日時
+	CreatedAt    string  `json:"created_at" example:"2024-01-01T09:00:00Z"`         // 作成日時
+	UpdatedAt    string  `json:"updated_at" example:"2024-01-01T11:00:00Z"`         // 更新日時
+}
+
+// convertToSwaggerMatch はmodels.MatchをSwagger用のMatchに変換する
+func convertToSwaggerMatch(match *models.Match) Match {
+	var completedAt *string
+	if match.CompletedAt != nil {
+		completedAtStr := match.CompletedAt.Format("2006-01-02T15:04:05Z")
+		completedAt = &completedAtStr
+	}
+
+	return Match{
+		ID:           match.ID,
+		TournamentID: match.TournamentID,
+		Round:        match.Round,
+		Team1:        match.Team1,
+		Team2:        match.Team2,
+		Score1:       match.Score1,
+		Score2:       match.Score2,
+		Winner:       match.Winner,
+		Status:       match.Status,
+		ScheduledAt:  match.ScheduledAt.Format("2006-01-02T15:04:05Z"),
+		CompletedAt:  completedAt,
+		CreatedAt:    match.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:    match.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+}
+
+// convertToSwaggerMatches はmodels.Matchの配列をSwagger用のMatchの配列に変換する
+func convertToSwaggerMatches(matches []*models.Match) []Match {
+	result := make([]Match, len(matches))
+	for i, match := range matches {
+		result[i] = convertToSwaggerMatch(match)
+	}
+	return result
+}
+
+// convertToSwaggerMatchStatistics はservice.MatchStatisticsをSwagger用のMatchStatisticsに変換する
+func convertToSwaggerMatchStatistics(stats *service.MatchStatistics) MatchStatistics {
+	// TeamStatsの変換
+	teamStats := make(map[string]*TeamStats)
+	for teamName, serviceTeamStats := range stats.TeamStats {
+		teamStats[teamName] = &TeamStats{
+			TeamName:      serviceTeamStats.TeamName,
+			MatchesPlayed: serviceTeamStats.MatchesPlayed,
+			Wins:          serviceTeamStats.Wins,
+			Losses:        serviceTeamStats.Losses,
+			TotalScore:    serviceTeamStats.TotalScore,
+			AverageScore:  serviceTeamStats.AverageScore,
+		}
+	}
+
+	return MatchStatistics{
+		TournamentID:     stats.TournamentID,
+		TotalMatches:     stats.TotalMatches,
+		CompletedMatches: stats.CompletedMatches,
+		PendingMatches:   stats.PendingMatches,
+		MatchesByRound:   stats.MatchesByRound,
+		CompletionRate:   stats.CompletionRate,
+		AverageScore:     stats.AverageScore,
+		TeamStats:        teamStats,
+	}
 }
 
 // MatchStatisticsResponse は試合統計レスポンスの構造体
 type MatchStatisticsResponse struct {
-	*service.MatchStatistics
-	Message string `json:"message,omitempty"`
+	Success bool            `json:"success" example:"true"`          // 成功フラグ
+	Message string          `json:"message" example:"試合統計を取得しました"` // メッセージ
+	Data    MatchStatistics `json:"data"`                            // 統計データ
+}
+
+// MatchStatistics はSwagger用の試合統計構造体
+type MatchStatistics struct {
+	TournamentID     int                   `json:"tournament_id" example:"1"`     // トーナメントID
+	TotalMatches     int                   `json:"total_matches" example:"16"`    // 総試合数
+	CompletedMatches int                   `json:"completed_matches" example:"8"` // 完了試合数
+	PendingMatches   int                   `json:"pending_matches" example:"8"`   // 未完了試合数
+	MatchesByRound   map[string]int        `json:"matches_by_round"`              // ラウンド別試合数
+	CompletionRate   float64               `json:"completion_rate" example:"0.5"` // 完了率
+	AverageScore     map[string]float64    `json:"average_score"`                 // 平均スコア
+	TeamStats        map[string]*TeamStats `json:"team_stats"`                    // チーム統計
+}
+
+// TeamStats はSwagger用のチーム統計構造体
+type TeamStats struct {
+	TeamName      string  `json:"team_name" example:"チームA"`      // チーム名
+	MatchesPlayed int     `json:"matches_played" example:"4"`     // 試合数
+	Wins          int     `json:"wins" example:"3"`               // 勝利数
+	Losses        int     `json:"losses" example:"1"`             // 敗北数
+	TotalScore    int     `json:"total_score" example:"12"`       // 総得点
+	AverageScore  float64 `json:"average_score" example:"3.0"`    // 平均得点
 }
 
 // CreateMatch は試合作成エンドポイントハンドラー
@@ -194,7 +297,8 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusCreated, MatchResponse{
-		Match:   match,
+		Success: true,
+		Data:    convertToSwaggerMatch(match),
 		Message: "試合を作成しました",
 	})
 }
@@ -240,7 +344,8 @@ func (h *MatchHandler) GetMatches(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, MatchListResponse{
-		Matches: matches,
+		Success: true,
+		Data:    convertToSwaggerMatches(matches),
 		Count:   len(matches),
 		Message: "試合一覧を取得しました",
 	})
@@ -291,7 +396,8 @@ func (h *MatchHandler) GetMatchesBySport(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, MatchListResponse{
-		Matches: matches,
+		Success: true,
+		Data:    convertToSwaggerMatches(matches),
 		Count:   len(matches),
 		Message: "スポーツ別試合一覧を取得しました",
 	})
@@ -344,7 +450,8 @@ func (h *MatchHandler) GetMatch(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, MatchResponse{
-		Match:   match,
+		Success: true,
+		Data:    convertToSwaggerMatch(match),
 		Message: "試合を取得しました",
 	})
 }
@@ -457,7 +564,8 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, MatchResponse{
-		Match:   match,
+		Success: true,
+		Data:    convertToSwaggerMatch(match),
 		Message: "試合を更新しました",
 	})
 }
@@ -581,7 +689,8 @@ func (h *MatchHandler) SubmitMatchResult(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, MatchResponse{
-		Match:   match,
+		Success: true,
+		Data:    convertToSwaggerMatch(match),
 		Message: "試合結果を提出しました",
 	})
 }
@@ -695,7 +804,8 @@ func (h *MatchHandler) GetMatchesByTournament(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, MatchListResponse{
-		Matches: matches,
+		Success: true,
+		Data:    convertToSwaggerMatches(matches),
 		Count:   len(matches),
 		Message: "トーナメント別試合一覧を取得しました",
 	})
@@ -747,8 +857,9 @@ func (h *MatchHandler) GetMatchStatistics(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, MatchStatisticsResponse{
-		MatchStatistics: statistics,
-		Message:         "試合統計を取得しました",
+		Success: true,
+		Data:    convertToSwaggerMatchStatistics(statistics),
+		Message: "試合統計を取得しました",
 	})
 }
 
@@ -798,7 +909,8 @@ func (h *MatchHandler) GetNextMatches(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, MatchListResponse{
-		Matches: matches,
+		Success: true,
+		Data:    convertToSwaggerMatches(matches),
 		Count:   len(matches),
 		Message: "次の試合一覧を取得しました",
 	})

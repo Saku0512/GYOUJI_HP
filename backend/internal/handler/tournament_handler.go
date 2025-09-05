@@ -42,27 +42,146 @@ type SwitchFormatRequest struct {
 
 // TournamentResponse はトーナメントレスポンスの構造体
 type TournamentResponse struct {
-	*models.Tournament
-	Message string `json:"message,omitempty"`
+	Success bool       `json:"success" example:"true"`              // 成功フラグ
+	Message string     `json:"message" example:"トーナメント情報を取得しました"` // メッセージ
+	Data    Tournament `json:"data"`                                // トーナメントデータ
 }
 
 // TournamentListResponse はトーナメント一覧レスポンスの構造体
 type TournamentListResponse struct {
-	Tournaments []*models.Tournament `json:"tournaments"`
-	Count       int                  `json:"count"`
-	Message     string               `json:"message,omitempty"`
+	Success bool         `json:"success" example:"true"`              // 成功フラグ
+	Message string       `json:"message" example:"トーナメント一覧を取得しました"` // メッセージ
+	Data    []Tournament `json:"data"`                                // トーナメントデータ配列
+	Count   int          `json:"count" example:"3"`                   // 件数
+}
+
+// Tournament はSwagger用のトーナメント構造体
+type Tournament struct {
+	ID        int    `json:"id" example:"1"`                                      // トーナメントID
+	Sport     string `json:"sport" example:"volleyball"`                         // スポーツ種目
+	Format    string `json:"format" example:"standard"`                          // トーナメント形式
+	Status    string `json:"status" example:"active"`                            // ステータス
+	CreatedAt string `json:"created_at" example:"2024-01-01T09:00:00Z"`         // 作成日時
+	UpdatedAt string `json:"updated_at" example:"2024-01-01T11:00:00Z"`         // 更新日時
+}
+
+// convertToSwaggerTournament はmodels.TournamentをSwagger用のTournamentに変換する
+func convertToSwaggerTournament(tournament *models.Tournament) Tournament {
+	return Tournament{
+		ID:        tournament.ID,
+		Sport:     tournament.Sport,
+		Format:    tournament.Format,
+		Status:    tournament.Status,
+		CreatedAt: tournament.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt: tournament.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+}
+
+// convertToSwaggerTournaments はmodels.Tournamentの配列をSwagger用のTournamentの配列に変換する
+func convertToSwaggerTournaments(tournaments []*models.Tournament) []Tournament {
+	result := make([]Tournament, len(tournaments))
+	for i, tournament := range tournaments {
+		result[i] = convertToSwaggerTournament(tournament)
+	}
+	return result
+}
+
+// convertToSwaggerBracket はmodels.BracketをSwagger用のBracketに変換する
+func convertToSwaggerBracket(bracket *models.Bracket) Bracket {
+	rounds := make([]Round, len(bracket.Rounds))
+	for i, round := range bracket.Rounds {
+		matches := make([]Match, len(round.Matches))
+		for j, match := range round.Matches {
+			var completedAt *string
+			if match.CompletedAt != nil {
+				completedAtStr := match.CompletedAt.Format("2006-01-02T15:04:05Z")
+				completedAt = &completedAtStr
+			}
+
+			matches[j] = Match{
+				ID:           match.ID,
+				TournamentID: match.TournamentID,
+				Round:        match.Round,
+				Team1:        match.Team1,
+				Team2:        match.Team2,
+				Score1:       match.Score1,
+				Score2:       match.Score2,
+				Winner:       match.Winner,
+				Status:       match.Status,
+				ScheduledAt:  match.ScheduledAt.Format("2006-01-02T15:04:05Z"),
+				CompletedAt:  completedAt,
+				CreatedAt:    match.CreatedAt.Format("2006-01-02T15:04:05Z"),
+				UpdatedAt:    match.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			}
+		}
+		rounds[i] = Round{
+			Name:    round.Name,
+			Matches: matches,
+		}
+	}
+
+	return Bracket{
+		TournamentID: bracket.TournamentID,
+		Sport:        bracket.Sport,
+		Format:       bracket.Format,
+		Rounds:       rounds,
+	}
+}
+
+// convertToSwaggerTournamentProgress はservice.TournamentProgressをSwagger用のTournamentProgressに変換する
+func convertToSwaggerTournamentProgress(progress *service.TournamentProgress) TournamentProgress {
+	return TournamentProgress{
+		TournamentID:     progress.TournamentID,
+		Sport:            progress.Sport,
+		Format:           progress.Format,
+		Status:           progress.Status,
+		TotalMatches:     progress.TotalMatches,
+		CompletedMatches: progress.CompletedMatches,
+		PendingMatches:   progress.PendingMatches,
+		ProgressPercent:  progress.ProgressPercent,
+		CurrentRound:     progress.CurrentRound,
+	}
 }
 
 // BracketResponse はブラケットレスポンスの構造体
 type BracketResponse struct {
-	*models.Bracket
-	Message string `json:"message,omitempty"`
+	Success bool    `json:"success" example:"true"`          // 成功フラグ
+	Message string  `json:"message" example:"ブラケット情報を取得しました"` // メッセージ
+	Data    Bracket `json:"data"`                            // ブラケットデータ
 }
 
 // ProgressResponse はトーナメント進行状況レスポンスの構造体
 type ProgressResponse struct {
-	*service.TournamentProgress
-	Message string `json:"message,omitempty"`
+	Success bool               `json:"success" example:"true"`      // 成功フラグ
+	Message string             `json:"message" example:"進行状況を取得しました"` // メッセージ
+	Data    TournamentProgress `json:"data"`                        // 進行状況データ
+}
+
+// Bracket はSwagger用のブラケット構造体
+type Bracket struct {
+	TournamentID int     `json:"tournament_id" example:"1"`        // トーナメントID
+	Sport        string  `json:"sport" example:"volleyball"`       // スポーツ種目
+	Format       string  `json:"format" example:"standard"`        // トーナメント形式
+	Rounds       []Round `json:"rounds"`                           // ラウンド配列
+}
+
+// Round はSwagger用のラウンド構造体
+type Round struct {
+	Name    string  `json:"name" example:"1st_round"`    // ラウンド名
+	Matches []Match `json:"matches"`                     // 試合配列
+}
+
+// TournamentProgress はSwagger用のトーナメント進行状況構造体
+type TournamentProgress struct {
+	TournamentID     int     `json:"tournament_id" example:"1"`        // トーナメントID
+	Sport            string  `json:"sport" example:"volleyball"`       // スポーツ種目
+	Format           string  `json:"format" example:"standard"`        // トーナメント形式
+	Status           string  `json:"status" example:"active"`          // ステータス
+	TotalMatches     int     `json:"total_matches" example:"16"`       // 総試合数
+	CompletedMatches int     `json:"completed_matches" example:"8"`    // 完了試合数
+	PendingMatches   int     `json:"pending_matches" example:"8"`      // 未完了試合数
+	ProgressPercent  float64 `json:"progress_percent" example:"50.0"`  // 進行率
+	CurrentRound     string  `json:"current_round" example:"quarterfinal"` // 現在のラウンド
 }
 
 // CreateTournament はトーナメント作成エンドポイントハンドラー
@@ -142,8 +261,9 @@ func (h *TournamentHandler) CreateTournament(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusCreated, TournamentResponse{
-		Tournament: tournament,
-		Message:    "トーナメントを作成しました",
+		Success: true,
+		Data:    convertToSwaggerTournament(tournament),
+		Message: "トーナメントを作成しました",
 	})
 }
 
@@ -168,9 +288,10 @@ func (h *TournamentHandler) GetTournaments(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, TournamentListResponse{
-		Tournaments: tournaments,
-		Count:       len(tournaments),
-		Message:     "トーナメント一覧を取得しました",
+		Success: true,
+		Data:    convertToSwaggerTournaments(tournaments),
+		Count:   len(tournaments),
+		Message: "トーナメント一覧を取得しました",
 	})
 }
 
@@ -229,8 +350,9 @@ func (h *TournamentHandler) GetTournamentBySport(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, TournamentResponse{
-		Tournament: tournament,
-		Message:    "トーナメントを取得しました",
+		Success: true,
+		Data:    convertToSwaggerTournament(tournament),
+		Message: "トーナメントを取得しました",
 	})
 }
 
@@ -281,8 +403,9 @@ func (h *TournamentHandler) GetTournamentByID(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, TournamentResponse{
-		Tournament: tournament,
-		Message:    "トーナメントを取得しました",
+		Success: true,
+		Data:    convertToSwaggerTournament(tournament),
+		Message: "トーナメントを取得しました",
 	})
 }
 
@@ -376,8 +499,9 @@ func (h *TournamentHandler) UpdateTournament(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, TournamentResponse{
-		Tournament: tournament,
-		Message:    "トーナメントを更新しました",
+		Success: true,
+		Data:    convertToSwaggerTournament(tournament),
+		Message: "トーナメントを更新しました",
 	})
 }
 
@@ -499,7 +623,8 @@ func (h *TournamentHandler) GetTournamentBracket(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, BracketResponse{
-		Bracket: bracket,
+		Success: true,
+		Data:    convertToSwaggerBracket(bracket),
 		Message: "ブラケットを取得しました",
 	})
 }
@@ -601,11 +726,22 @@ func (h *TournamentHandler) SwitchTournamentFormat(c *gin.Context) {
 		return
 	}
 
+	// 更新されたトーナメントを取得
+	updatedTournament, err := h.tournamentService.GetTournamentBySport(sport)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "更新されたトーナメント情報の取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
 	// 成功レスポンス
-	c.JSON(http.StatusOK, gin.H{
-		"message": "トーナメント形式を切り替えました",
-		"sport":   sport,
-		"format":  req.Format,
+	c.JSON(http.StatusOK, TournamentResponse{
+		Success: true,
+		Data:    convertToSwaggerTournament(updatedTournament),
+		Message: "トーナメント形式を切り替えました",
 	})
 }
 
@@ -630,9 +766,10 @@ func (h *TournamentHandler) GetActiveTournaments(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, TournamentListResponse{
-		Tournaments: tournaments,
-		Count:       len(tournaments),
-		Message:     "アクティブトーナメント一覧を取得しました",
+		Success: true,
+		Data:    convertToSwaggerTournaments(tournaments),
+		Count:   len(tournaments),
+		Message: "アクティブトーナメント一覧を取得しました",
 	})
 }
 
@@ -691,8 +828,9 @@ func (h *TournamentHandler) GetTournamentProgress(c *gin.Context) {
 
 	// 成功レスポンス
 	c.JSON(http.StatusOK, ProgressResponse{
-		TournamentProgress: progress,
-		Message:            "トーナメント進行状況を取得しました",
+		Success: true,
+		Data:    convertToSwaggerTournamentProgress(progress),
+		Message: "トーナメント進行状況を取得しました",
 	})
 }
 
@@ -770,10 +908,22 @@ func (h *TournamentHandler) CompleteTournament(c *gin.Context) {
 		return
 	}
 
+	// 更新されたトーナメントを取得
+	updatedTournament, err := h.tournamentService.GetTournamentBySport(sport)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "更新されたトーナメント情報の取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
 	// 成功レスポンス
-	c.JSON(http.StatusOK, gin.H{
-		"message": "トーナメントを完了しました",
-		"sport":   sport,
+	c.JSON(http.StatusOK, TournamentResponse{
+		Success: true,
+		Data:    convertToSwaggerTournament(updatedTournament),
+		Message: "トーナメントを完了しました",
 	})
 }
 
@@ -842,9 +992,21 @@ func (h *TournamentHandler) ActivateTournament(c *gin.Context) {
 		return
 	}
 
+	// 更新されたトーナメントを取得
+	updatedTournament, err := h.tournamentService.GetTournamentBySport(sport)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "更新されたトーナメント情報の取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
 	// 成功レスポンス
-	c.JSON(http.StatusOK, gin.H{
-		"message": "トーナメントをアクティブ化しました",
-		"sport":   sport,
+	c.JSON(http.StatusOK, TournamentResponse{
+		Success: true,
+		Data:    convertToSwaggerTournament(updatedTournament),
+		Message: "トーナメントをアクティブ化しました",
 	})
 }

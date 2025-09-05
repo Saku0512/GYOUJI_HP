@@ -1,0 +1,1392 @@
+definitions:
+  handler.Bracket:
+    properties:
+      format:
+        description: トーナメント形式
+        example: standard
+        type: string
+      rounds:
+        description: ラウンド配列
+        items:
+          $ref: '#/definitions/handler.Round'
+        type: array
+      sport:
+        description: スポーツ種目
+        example: volleyball
+        type: string
+      tournament_id:
+        description: トーナメントID
+        example: 1
+        type: integer
+    type: object
+  handler.BracketResponse:
+    properties:
+      data:
+        allOf:
+        - $ref: '#/definitions/handler.Bracket'
+        description: ブラケットデータ
+      message:
+        description: メッセージ
+        example: ブラケット情報を取得しました
+        type: string
+      success:
+        description: 成功フラグ
+        example: true
+        type: boolean
+    type: object
+  handler.CreateMatchRequest:
+    properties:
+      round:
+        type: string
+      scheduled_at:
+        type: string
+      team1:
+        type: string
+      team2:
+        type: string
+      tournament_id:
+        type: integer
+    required:
+    - round
+    - scheduled_at
+    - team1
+    - team2
+    - tournament_id
+    type: object
+  handler.CreateTournamentRequest:
+    properties:
+      format:
+        type: string
+      sport:
+        type: string
+    required:
+    - format
+    - sport
+    type: object
+  handler.ErrorResponse:
+    properties:
+      code:
+        type: integer
+      error:
+        type: string
+      message:
+        type: string
+    type: object
+  handler.LoginRequest:
+    properties:
+      password:
+        description: パスワード
+        example: password
+        type: string
+      username:
+        description: ユーザー名
+        example: admin
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handler.LoginResponse:
+    properties:
+      message:
+        description: メッセージ
+        example: ログインに成功しました
+        type: string
+      role:
+        description: ユーザーロール
+        example: admin
+        type: string
+      success:
+        description: 成功フラグ
+        example: true
+        type: boolean
+      token:
+        description: JWTトークン
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      username:
+        description: ユーザー名
+        example: admin
+        type: string
+    type: object
+  handler.Match:
+    properties:
+      completed_at:
+        description: 完了日時
+        example: "2024-01-01T11:00:00Z"
+        type: string
+      created_at:
+        description: 作成日時
+        example: "2024-01-01T09:00:00Z"
+        type: string
+      id:
+        description: 試合ID
+        example: 1
+        type: integer
+      round:
+        description: ラウンド名
+        example: 1st_round
+        type: string
+      scheduled_at:
+        description: 予定日時
+        example: "2024-01-01T10:00:00Z"
+        type: string
+      score1:
+        description: チーム1のスコア
+        example: 3
+        type: integer
+      score2:
+        description: チーム2のスコア
+        example: 1
+        type: integer
+      status:
+        description: 試合ステータス
+        example: pending
+        type: string
+      team1:
+        description: チーム1
+        example: チームA
+        type: string
+      team2:
+        description: チーム2
+        example: チームB
+        type: string
+      tournament_id:
+        description: トーナメントID
+        example: 1
+        type: integer
+      updated_at:
+        description: 更新日時
+        example: "2024-01-01T11:00:00Z"
+        type: string
+      winner:
+        description: 勝者
+        example: チームA
+        type: string
+    type: object
+  handler.MatchListResponse:
+    properties:
+      count:
+        description: 件数
+        example: 10
+        type: integer
+      data:
+        description: 試合データ配列
+        items:
+          $ref: '#/definitions/handler.Match'
+        type: array
+      message:
+        description: メッセージ
+        example: 試合一覧を取得しました
+        type: string
+      success:
+        description: 成功フラグ
+        example: true
+        type: boolean
+    type: object
+  handler.MatchResponse:
+    properties:
+      data:
+        allOf:
+        - $ref: '#/definitions/handler.Match'
+        description: 試合データ
+      message:
+        description: メッセージ
+        example: 試合情報を取得しました
+        type: string
+      success:
+        description: 成功フラグ
+        example: true
+        type: boolean
+    type: object
+  handler.MatchStatistics:
+    properties:
+      average_score:
+        additionalProperties:
+          format: float64
+          type: number
+        description: 平均スコア
+        type: object
+      completed_matches:
+        description: 完了試合数
+        example: 8
+        type: integer
+      completion_rate:
+        description: 完了率
+        example: 0.5
+        type: number
+      matches_by_round:
+        additionalProperties:
+          type: integer
+        description: ラウンド別試合数
+        type: object
+      pending_matches:
+        description: 未完了試合数
+        example: 8
+        type: integer
+      team_stats:
+        additionalProperties:
+          $ref: '#/definitions/handler.TeamStats'
+        description: チーム統計
+        type: object
+      total_matches:
+        description: 総試合数
+        example: 16
+        type: integer
+      tournament_id:
+        description: トーナメントID
+        example: 1
+        type: integer
+    type: object
+  handler.MatchStatisticsResponse:
+    properties:
+      data:
+        allOf:
+        - $ref: '#/definitions/handler.MatchStatistics'
+        description: 統計データ
+      message:
+        description: メッセージ
+        example: 試合統計を取得しました
+        type: string
+      success:
+        description: 成功フラグ
+        example: true
+        type: boolean
+    type: object
+  handler.ProgressResponse:
+    properties:
+      data:
+        allOf:
+        - $ref: '#/definitions/handler.TournamentProgress'
+        description: 進行状況データ
+      message:
+        description: メッセージ
+        example: 進行状況を取得しました
+        type: string
+      success:
+        description: 成功フラグ
+        example: true
+        type: boolean
+    type: object
+  handler.RefreshTokenRequest:
+    properties:
+      token:
+        description: 既存のJWTトークン
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    required:
+    - token
+    type: object
+  handler.RefreshTokenResponse:
+    properties:
+      message:
+        description: メッセージ
+        example: トークンのリフレッシュに成功しました
+        type: string
+      success:
+        description: 成功フラグ
+        example: true
+        type: boolean
+      token:
+        description: 新しいJWTトークン
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  handler.Round:
+    properties:
+      matches:
+        description: 試合配列
+        items:
+          $ref: '#/definitions/handler.Match'
+        type: array
+      name:
+        description: ラウンド名
+        example: 1st_round
+        type: string
+    type: object
+  handler.SubmitMatchResultRequest:
+    properties:
+      score1:
+        minimum: 0
+        type: integer
+      score2:
+        minimum: 0
+        type: integer
+      winner:
+        type: string
+    required:
+    - score1
+    - score2
+    - winner
+    type: object
+  handler.SwitchFormatRequest:
+    properties:
+      format:
+        type: string
+    required:
+    - format
+    type: object
+  handler.TeamStats:
+    properties:
+      average_score:
+        description: 平均得点
+        example: 3
+        type: number
+      losses:
+        description: 敗北数
+        example: 1
+        type: integer
+      matches_played:
+        description: 試合数
+        example: 4
+        type: integer
+      team_name:
+        description: チーム名
+        example: チームA
+        type: string
+      total_score:
+        description: 総得点
+        example: 12
+        type: integer
+      wins:
+        description: 勝利数
+        example: 3
+        type: integer
+    type: object
+  handler.Tournament:
+    properties:
+      created_at:
+        description: 作成日時
+        example: "2024-01-01T09:00:00Z"
+        type: string
+      format:
+        description: トーナメント形式
+        example: standard
+        type: string
+      id:
+        description: トーナメントID
+        example: 1
+        type: integer
+      sport:
+        description: スポーツ種目
+        example: volleyball
+        type: string
+      status:
+        description: ステータス
+        example: active
+        type: string
+      updated_at:
+        description: 更新日時
+        example: "2024-01-01T11:00:00Z"
+        type: string
+    type: object
+  handler.TournamentListResponse:
+    properties:
+      count:
+        description: 件数
+        example: 3
+        type: integer
+      data:
+        description: トーナメントデータ配列
+        items:
+          $ref: '#/definitions/handler.Tournament'
+        type: array
+      message:
+        description: メッセージ
+        example: トーナメント一覧を取得しました
+        type: string
+      success:
+        description: 成功フラグ
+        example: true
+        type: boolean
+    type: object
+  handler.TournamentProgress:
+    properties:
+      completed_matches:
+        description: 完了試合数
+        example: 8
+        type: integer
+      current_round:
+        description: 現在のラウンド
+        example: quarterfinal
+        type: string
+      format:
+        description: トーナメント形式
+        example: standard
+        type: string
+      pending_matches:
+        description: 未完了試合数
+        example: 8
+        type: integer
+      progress_percent:
+        description: 進行率
+        example: 50
+        type: number
+      sport:
+        description: スポーツ種目
+        example: volleyball
+        type: string
+      status:
+        description: ステータス
+        example: active
+        type: string
+      total_matches:
+        description: 総試合数
+        example: 16
+        type: integer
+      tournament_id:
+        description: トーナメントID
+        example: 1
+        type: integer
+    type: object
+  handler.TournamentResponse:
+    properties:
+      data:
+        allOf:
+        - $ref: '#/definitions/handler.Tournament'
+        description: トーナメントデータ
+      message:
+        description: メッセージ
+        example: トーナメント情報を取得しました
+        type: string
+      success:
+        description: 成功フラグ
+        example: true
+        type: boolean
+    type: object
+  handler.UpdateMatchRequest:
+    properties:
+      round:
+        type: string
+      scheduled_at:
+        type: string
+      status:
+        type: string
+      team1:
+        type: string
+      team2:
+        type: string
+    type: object
+  handler.UpdateTournamentRequest:
+    properties:
+      format:
+        type: string
+      status:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 管理者認証情報でログインし、JWTトークンを取得する
+      parameters:
+      - description: ログイン情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ログイン成功
+          schema:
+            $ref: '#/definitions/handler.LoginResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: ユーザーログイン
+      tags:
+      - auth
+  /api/auth/logout:
+    post:
+      description: ログアウト処理（JWTはステートレスのため、クライアント側でトークンを削除）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ログアウト成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ユーザーログアウト
+      tags:
+      - auth
+  /api/auth/profile:
+    get:
+      description: 現在認証されているユーザーの情報を取得する
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ユーザー情報
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: ユーザープロフィール取得
+      tags:
+      - auth
+  /api/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: 既存のJWTトークンを使用して新しいトークンを生成する
+      parameters:
+      - description: リフレッシュ情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: リフレッシュ成功
+          schema:
+            $ref: '#/definitions/handler.RefreshTokenResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: JWTトークンリフレッシュ
+      tags:
+      - auth
+  /api/auth/validate:
+    post:
+      consumes:
+      - application/json
+      description: JWTトークンの有効性を検証する
+      parameters:
+      - description: 検証するトークン
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 検証成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トークン検証
+      tags:
+      - auth
+  /api/matches:
+    get:
+      description: 全ての試合を取得する
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.MatchListResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 全試合取得
+      tags:
+      - matches
+    post:
+      consumes:
+      - application/json
+      description: 新しい試合を作成する（管理者のみ）
+      parameters:
+      - description: 試合作成情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateMatchRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 作成成功
+          schema:
+            $ref: '#/definitions/handler.MatchResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 競合エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 試合作成
+      tags:
+      - matches
+  /api/matches/{id}:
+    delete:
+      description: 指定されたIDの試合を削除する（管理者のみ）
+      parameters:
+      - description: 試合ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 削除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 競合エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 試合削除
+      tags:
+      - matches
+    put:
+      consumes:
+      - application/json
+      description: 指定されたIDの試合を更新する（管理者のみ）
+      parameters:
+      - description: 試合ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 試合更新情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateMatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/handler.MatchResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 試合更新
+      tags:
+      - matches
+  /api/matches/{id}/result:
+    put:
+      consumes:
+      - application/json
+      description: 指定された試合の結果を提出する（管理者のみ）
+      parameters:
+      - description: 試合ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 試合結果情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SubmitMatchResultRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 提出成功
+          schema:
+            $ref: '#/definitions/handler.MatchResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "422":
+          description: ビジネスロジックエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 試合結果提出
+      tags:
+      - matches
+  /api/matches/{sport}:
+    get:
+      description: 指定されたスポーツの試合を取得する
+      parameters:
+      - description: スポーツ名
+        enum:
+        - volleyball
+        - table_tennis
+        - soccer
+        in: path
+        name: sport
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.MatchListResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: スポーツ別試合取得
+      tags:
+      - matches
+  /api/matches/id/{id}:
+    get:
+      description: 指定されたIDの試合を取得する
+      parameters:
+      - description: 試合ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.MatchResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: ID別試合取得
+      tags:
+      - matches
+  /api/matches/tournament/{tournament_id}:
+    get:
+      description: 指定されたトーナメントの試合を取得する
+      parameters:
+      - description: トーナメントID
+        in: path
+        name: tournament_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.MatchListResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トーナメント別試合取得
+      tags:
+      - matches
+  /api/matches/tournament/{tournament_id}/next:
+    get:
+      description: 指定されたトーナメントの次に実施予定の試合を取得する
+      parameters:
+      - description: トーナメントID
+        in: path
+        name: tournament_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.MatchListResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 次の試合取得
+      tags:
+      - matches
+  /api/matches/tournament/{tournament_id}/statistics:
+    get:
+      description: 指定されたトーナメントの試合統計を取得する
+      parameters:
+      - description: トーナメントID
+        in: path
+        name: tournament_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.MatchStatisticsResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 試合統計取得
+      tags:
+      - matches
+  /api/tournaments:
+    get:
+      description: 全てのトーナメントを取得する
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.TournamentListResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 全トーナメント取得
+      tags:
+      - tournaments
+    post:
+      consumes:
+      - application/json
+      description: 新しいトーナメントを作成する（管理者のみ）
+      parameters:
+      - description: トーナメント作成情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateTournamentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 作成成功
+          schema:
+            $ref: '#/definitions/handler.TournamentResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 競合エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: トーナメント作成
+      tags:
+      - tournaments
+  /api/tournaments/{id}:
+    delete:
+      description: 指定されたIDのトーナメントを削除する（管理者のみ）
+      parameters:
+      - description: トーナメントID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 削除成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 競合エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: トーナメント削除
+      tags:
+      - tournaments
+    put:
+      consumes:
+      - application/json
+      description: 指定されたIDのトーナメントを更新する（管理者のみ）
+      parameters:
+      - description: トーナメントID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: トーナメント更新情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateTournamentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/handler.TournamentResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: トーナメント更新
+      tags:
+      - tournaments
+  /api/tournaments/{sport}:
+    get:
+      description: 指定されたスポーツのトーナメントを取得する
+      parameters:
+      - description: スポーツ名
+        enum:
+        - volleyball
+        - table_tennis
+        - soccer
+        in: path
+        name: sport
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.TournamentResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: スポーツ別トーナメント取得
+      tags:
+      - tournaments
+  /api/tournaments/{sport}/activate:
+    put:
+      description: 指定されたスポーツのトーナメントをアクティブ状態にする（管理者のみ）
+      parameters:
+      - description: スポーツ名
+        enum:
+        - volleyball
+        - table_tennis
+        - soccer
+        in: path
+        name: sport
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: アクティブ化成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 競合エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: トーナメントアクティブ化
+      tags:
+      - tournaments
+  /api/tournaments/{sport}/bracket:
+    get:
+      description: 指定されたスポーツのトーナメントブラケットを取得する
+      parameters:
+      - description: スポーツ名
+        enum:
+        - volleyball
+        - table_tennis
+        - soccer
+        in: path
+        name: sport
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.BracketResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トーナメントブラケット取得
+      tags:
+      - tournaments
+  /api/tournaments/{sport}/complete:
+    put:
+      description: 指定されたスポーツのトーナメントを完了状態にする（管理者のみ）
+      parameters:
+      - description: スポーツ名
+        enum:
+        - volleyball
+        - table_tennis
+        - soccer
+        in: path
+        name: sport
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 完了成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 競合エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: トーナメント完了
+      tags:
+      - tournaments
+  /api/tournaments/{sport}/format:
+    put:
+      consumes:
+      - application/json
+      description: 指定されたスポーツのトーナメント形式を切り替える（卓球の天候条件用、管理者のみ）
+      parameters:
+      - description: スポーツ名
+        enum:
+        - table_tennis
+        in: path
+        name: sport
+        required: true
+        type: string
+      - description: 形式切り替え情報
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SwitchFormatRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 切り替え成功
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: 認証エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: 競合エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: トーナメント形式切り替え
+      tags:
+      - tournaments
+  /api/tournaments/{sport}/progress:
+    get:
+      description: 指定されたスポーツのトーナメント進行状況を取得する
+      parameters:
+      - description: スポーツ名
+        enum:
+        - volleyball
+        - table_tennis
+        - soccer
+        in: path
+        name: sport
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.ProgressResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: トーナメント進行状況取得
+      tags:
+      - tournaments
+  /api/tournaments/active:
+    get:
+      description: アクティブなトーナメントのみを取得する
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.TournamentListResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: アクティブトーナメント取得
+      tags:
+      - tournaments
+  /api/tournaments/id/{id}:
+    get:
+      description: 指定されたIDのトーナメントを取得する
+      parameters:
+      - description: トーナメントID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 取得成功
+          schema:
+            $ref: '#/definitions/handler.TournamentResponse'
+        "400":
+          description: リクエストエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: 未発見エラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: ID別トーナメント取得
+      tags:
+      - tournaments
+swagger: "2.0"

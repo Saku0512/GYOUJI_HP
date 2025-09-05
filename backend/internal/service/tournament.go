@@ -1,11 +1,11 @@
 package service
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"time"
 
-	"backend/internal/errors"
-	"backend/internal/logger"
 	"backend/internal/models"
 	"backend/internal/repository"
 )

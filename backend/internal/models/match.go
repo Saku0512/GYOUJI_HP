@@ -7,6 +7,7 @@ import (
 )
 
 // Match は試合を表すモデル
+// @Description 試合を表すモデル
 type Match struct {
 	ID           int        `json:"id" db:"id"`
 	TournamentID int        `json:"tournament_id" db:"tournament_id"`
