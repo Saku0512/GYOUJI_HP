@@ -11,26 +11,50 @@
   - TypeScript設定とESLint/Prettierの設定
   - _要件: 5.1, 5.4_
 
-- [ ] 2. APIクライアントとユーティリティの実装
-  - [ ] 2.1 HTTPクライアントの作成
+- [x] 2. APIクライアントとユーティリティの実装
+
+
+
+
+  - [x] 2.1 HTTPクライアントの作成
+
+
     - APIClient クラスの実装（認証ヘッダー、エラーハンドリング、レスポンス処理）
     - 環境変数からのAPI基底URLの設定
     - リクエスト/レスポンスインターセプターの実装
     - _要件: 4.3, 7.1, 7.3_
 
-  - [ ] 2.2 認証APIクライアントの実装
+
+
+  - [x] 2.2 認証APIクライアントの実装
+
+
+
+
     - AuthAPI クラスの作成（login, logout, refreshToken, validateToken メソッド）
     - JWTトークンの自動付与とリフレッシュ機能
     - 認証APIクライアントの単体テスト作成
+
+
     - _要件: 1.1, 1.2, 1.4_
 
-  - [ ] 2.3 トーナメントAPIクライアントの実装
+  - [x] 2.3 トーナメントAPIクライアントの実装
+
+
+
+
     - TournamentAPI クラスの作成（getTournaments, getTournament, getTournamentBracket メソッド）
+
+
     - トーナメント形式切り替えAPI呼び出しの実装
     - トーナメントAPIクライアントの単体テスト作成
     - _要件: 2.2, 4.1, 6.2, 6.3_
 
-  - [ ] 2.4 試合APIクライアントの実装
+  - [x] 2.4 試合APIクライアントの実装
+
+
+
+
     - MatchAPI クラスの作成（getMatches, getMatch, updateMatch, createMatch メソッド）
     - 試合結果更新のAPI呼び出し実装
     - 試合APIクライアントの単体テスト作成
