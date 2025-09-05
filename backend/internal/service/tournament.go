@@ -1,11 +1,11 @@
 package service
 
 import (
-	"errors"
 	"fmt"
-	"log"
 	"time"
 
+	"backend/internal/errors"
+	"backend/internal/logger"
 	"backend/internal/models"
 	"backend/internal/repository"
 )
@@ -66,19 +66,21 @@ func NewTournamentService(tournamentRepo repository.TournamentRepository, matchR
 
 // CreateTournament は新しいトーナメントを作成する
 func (s *tournamentServiceImpl) CreateTournament(sport, format string) (*models.Tournament, error) {
+	log := logger.GetLogger()
+	
 	// 入力値の検証
 	if !models.IsValidSport(sport) {
-		return nil, errors.New("無効なスポーツです")
+		return nil, errors.NewValidationError("無効なスポーツです")
 	}
 	
 	if !models.IsValidTournamentFormat(format) {
-		return nil, errors.New("無効なトーナメントフォーマットです")
+		return nil, errors.NewValidationError("無効なトーナメントフォーマットです")
 	}
 	
 	// 既存のアクティブなトーナメントをチェック
 	existingTournament, err := s.tournamentRepo.GetBySport(sport)
 	if err == nil && existingTournament.IsActive() {
-		return nil, fmt.Errorf("スポーツ %s には既にアクティブなトーナメントが存在します", sport)
+		return nil, errors.NewConflictError(fmt.Sprintf("スポーツ %s には既にアクティブなトーナメントが存在します", sport))
 	}
 	
 	// 新しいトーナメントを作成
@@ -90,24 +92,37 @@ func (s *tournamentServiceImpl) CreateTournament(sport, format string) (*models.
 	
 	err = s.tournamentRepo.Create(tournament)
 	if err != nil {
-		log.Printf("トーナメント作成エラー: %v", err)
-		return nil, errors.New("トーナメントの作成に失敗しました")
+		log.Error("トーナメント作成エラー", 
+			logger.Err(err),
+			logger.String("sport", sport),
+			logger.String("format", format),
+		)
+		return nil, errors.NewDatabaseError("トーナメントの作成に失敗しました", err)
 	}
 	
-	log.Printf("トーナメントを作成しました: ID=%d, Sport=%s, Format=%s", tournament.ID, sport, format)
+	log.Info("トーナメントを作成しました", 
+		logger.Int("id", tournament.ID),
+		logger.String("sport", sport),
+		logger.String("format", format),
+	)
 	return tournament, nil
 }
 
 // GetTournament はスポーツに基づいてトーナメントを取得する
 func (s *tournamentServiceImpl) GetTournament(sport string) (*models.Tournament, error) {
+	log := logger.GetLogger()
+	
 	if !models.IsValidSport(sport) {
-		return nil, errors.New("無効なスポーツです")
+		return nil, errors.NewValidationError("無効なスポーツです")
 	}
 	
 	tournament, err := s.tournamentRepo.GetBySport(sport)
 	if err != nil {
-		log.Printf("トーナメント取得エラー: %v", err)
-		return nil, fmt.Errorf("スポーツ %s のトーナメントが見つかりません", sport)
+		log.Error("トーナメント取得エラー", 
+			logger.Err(err),
+			logger.String("sport", sport),
+		)
+		return nil, errors.NewNotFoundError(fmt.Sprintf("スポーツ %s のトーナメント", sport))
 	}
 	
 	return tournament, nil
@@ -115,14 +130,19 @@ func (s *tournamentServiceImpl) GetTournament(sport string) (*models.Tournament,
 
 // GetTournamentByID はIDに基づいてトーナメントを取得する
 func (s *tournamentServiceImpl) GetTournamentByID(id int) (*models.Tournament, error) {
+	log := logger.GetLogger()
+	
 	if id <= 0 {
-		return nil, errors.New("無効なトーナメントIDです")
+		return nil, errors.NewValidationError("無効なトーナメントIDです")
 	}
 	
 	tournament, err := s.tournamentRepo.GetByID(id)
 	if err != nil {
-		log.Printf("トーナメント取得エラー: %v", err)
-		return nil, errors.New("トーナメントが見つかりません")
+		log.Error("トーナメント取得エラー", 
+			logger.Err(err),
+			logger.Int("id", id),
+		)
+		return nil, errors.NewNotFoundError("トーナメント")
 	}
 	
 	return tournament, nil
@@ -130,67 +150,77 @@ func (s *tournamentServiceImpl) GetTournamentByID(id int) (*models.Tournament, e
 
 // UpdateTournament はトーナメントを更新する
 func (s *tournamentServiceImpl) UpdateTournament(tournament *models.Tournament) error {
+	log := logger.GetLogger()
+	
 	if tournament == nil {
-		return errors.New("トーナメントは必須です")
+		return errors.NewValidationError("トーナメントは必須です")
 	}
 	
 	if tournament.ID <= 0 {
-		return errors.New("無効なトーナメントIDです")
+		return errors.NewValidationError("無効なトーナメントIDです")
 	}
 	
 	// 既存のトーナメントが存在するかチェック
 	_, err := s.tournamentRepo.GetByID(tournament.ID)
 	if err != nil {
-		return errors.New("更新対象のトーナメントが見つかりません")
+		return errors.NewNotFoundError("更新対象のトーナメント")
 	}
 	
 	err = s.tournamentRepo.Update(tournament)
 	if err != nil {
-		log.Printf("トーナメント更新エラー: %v", err)
-		return errors.New("トーナメントの更新に失敗しました")
+		log.Error("トーナメント更新エラー", 
+			logger.Err(err),
+			logger.Int("id", tournament.ID),
+		)
+		return errors.NewDatabaseError("トーナメントの更新に失敗しました", err)
 	}
 	
-	log.Printf("トーナメントを更新しました: ID=%d", tournament.ID)
+	log.Info("トーナメントを更新しました", logger.Int("id", tournament.ID))
 	return nil
 }
 
 // DeleteTournament はトーナメントを削除する
 func (s *tournamentServiceImpl) DeleteTournament(id int) error {
 	if id <= 0 {
-		return errors.New("無効なトーナメントIDです")
+		return errors.NewValidationError("無効なトーナメントIDです")
 	}
 	
 	// 関連する試合があるかチェック
 	matchCount, err := s.matchRepo.CountByTournament(id)
 	if err != nil {
-		log.Printf("試合数取得エラー: %v", err)
-		return errors.New("トーナメントの削除チェックに失敗しました")
+		logger.GetLogger().Error("試合数取得エラー", logger.Err(err))
+		return errors.NewDatabaseError("トーナメントの削除チェックに失敗しました", err)
 	}
 	
 	if matchCount > 0 {
-		return errors.New("試合が存在するトーナメントは削除できません")
+		return errors.NewBusinessLogicError("試合が存在するトーナメントは削除できません")
 	}
 	
 	err = s.tournamentRepo.Delete(id)
 	if err != nil {
-		log.Printf("トーナメント削除エラー: %v", err)
-		return errors.New("トーナメントの削除に失敗しました")
+		logger.GetLogger().Error("トーナメント削除エラー", logger.Err(err))
+		return errors.NewDatabaseError("トーナメントの削除に失敗しました", err)
 	}
 	
-	log.Printf("トーナメントを削除しました: ID=%d", id)
+	logger.GetLogger().Info("トーナメントを削除しました", logger.Int("id", id))
 	return nil
 }
 
 // GetTournamentBracket はトーナメントブラケットを取得する
 func (s *tournamentServiceImpl) GetTournamentBracket(sport string) (*models.Bracket, error) {
+	log := logger.GetLogger()
+	
 	if !models.IsValidSport(sport) {
-		return nil, errors.New("無効なスポーツです")
+		return nil, errors.NewValidationError("無効なスポーツです")
 	}
 	
 	bracket, err := s.tournamentRepo.GetTournamentBracket(sport)
 	if err != nil {
-		log.Printf("ブラケット取得エラー: %v", err)
-		return nil, fmt.Errorf("スポーツ %s のブラケットが見つかりません", sport)
+		log.Error("ブラケット取得エラー", 
+			logger.Err(err),
+			logger.String("sport", sport),
+		)
+		return nil, errors.NewNotFoundError(fmt.Sprintf("スポーツ %s のブラケット", sport))
 	}
 	
 	return bracket, nil

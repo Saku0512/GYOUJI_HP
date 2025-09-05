@@ -3,7 +3,9 @@ package router
 import (
 	"time"
 
+	"backend/internal/errors"
 	"backend/internal/handler"
+	"backend/internal/logger"
 	"backend/internal/service"
 
 	"github.com/gin-contrib/cors"
@@ -56,11 +58,17 @@ func NewRouter(
 
 // setupMiddleware は全てのミドルウェアを設定する
 func (r *Router) setupMiddleware() {
-	// エラーハンドリングミドルウェア（最初に設定）
-	r.engine.Use(handler.ErrorHandlerMiddleware())
+	// パニック回復ミドルウェア（最初に設定）
+	r.engine.Use(errors.RecoveryMiddleware())
+
+	// リクエストIDミドルウェア
+	r.engine.Use(logger.RequestIDMiddleware())
 
 	// ログミドルウェア
-	r.engine.Use(handler.LoggingMiddleware())
+	r.engine.Use(logger.LoggingMiddleware())
+
+	// エラーハンドリングミドルウェア
+	r.engine.Use(errors.ErrorHandlerMiddleware())
 
 	// CORS設定
 	r.engine.Use(cors.New(cors.Config{
@@ -85,11 +93,9 @@ func (r *Router) rateLimitMiddleware() gin.HandlerFunc {
 		// 認証エンドポイントのみレート制限を適用
 		if c.Request.URL.Path == "/api/auth/login" || c.Request.URL.Path == "/api/auth/refresh" {
 			if !limiter.Allow() {
-				c.JSON(429, gin.H{
-					"error":   "Too Many Requests",
-					"message": "リクエスト制限に達しました。しばらく待ってから再試行してください。",
-					"code":    429,
-				})
+				err := errors.NewValidationError("リクエスト制限に達しました。しばらく待ってから再試行してください。")
+				err.StatusCode = 429
+				c.Error(err)
 				c.Abort()
 				return
 			}

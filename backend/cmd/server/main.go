@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,22 +13,31 @@ import (
 
 	"backend/internal/config"
 	"backend/internal/database"
+	"backend/internal/logger"
 	"backend/internal/repository"
 	"backend/internal/router"
 	"backend/internal/service"
 )
 
 func main() {
+	// ロガーの初期化
+	logger.Init()
+	log := logger.GetLogger()
+
 	// 設定の読み込み
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("設定の読み込みに失敗しました: %v", err)
+		log.Fatal("設定の読み込みに失敗しました", logger.Err(err))
 	}
 
-	log.Printf("サーバーを開始します: %s", cfg.GetServerAddress())
-	log.Printf("データベース接続先: %s:%d/%s", cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName)
-	log.Printf("JWT発行者: %s", cfg.JWT.Issuer)
-	log.Printf("JWT有効期限: %v", cfg.GetJWTExpiration())
+	log.Info("サーバーを開始します",
+		logger.String("address", cfg.GetServerAddress()),
+		logger.String("db_host", cfg.Database.Host),
+		logger.Int("db_port", cfg.Database.Port),
+		logger.String("db_name", cfg.Database.DBName),
+		logger.String("jwt_issuer", cfg.JWT.Issuer),
+		logger.Any("jwt_expiration", cfg.GetJWTExpiration()),
+	)
 
 	// データベース接続の初期化
 	dbConfig := database.Config{
@@ -43,17 +51,17 @@ func main() {
 
 	db, err := database.NewConnection(dbConfig)
 	if err != nil {
-		log.Fatalf("データベース接続の初期化に失敗しました: %v", err)
+		log.Fatal("データベース接続の初期化に失敗しました", logger.Err(err))
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
-			log.Printf("データベース接続の終了でエラーが発生しました: %v", err)
+			log.Error("データベース接続の終了でエラーが発生しました", logger.Err(err))
 		}
 	}()
 
 	// データベースマイグレーションの実行
-	if err := runMigrations(db); err != nil {
-		log.Fatalf("データベースマイグレーションに失敗しました: %v", err)
+	if err := runMigrations(db, log); err != nil {
+		log.Fatal("データベースマイグレーションに失敗しました", logger.Err(err))
 	}
 
 	// リポジトリの初期化
@@ -80,9 +88,9 @@ func main() {
 
 	// サーバーをゴルーチンで開始
 	go func() {
-		log.Printf("HTTPサーバーを開始します: %s", cfg.GetServerAddress())
+		log.Info("HTTPサーバーを開始します", logger.String("address", cfg.GetServerAddress()))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("HTTPサーバーの開始に失敗しました: %v", err)
+			log.Fatal("HTTPサーバーの開始に失敗しました", logger.Err(err))
 		}
 	}()
 
@@ -91,7 +99,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("サーバーをシャットダウンしています...")
+	log.Info("サーバーをシャットダウンしています...")
 
 	// シャットダウンのタイムアウト設定
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -99,15 +107,15 @@ func main() {
 
 	// サーバーのグレースフルシャットダウン
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("サーバーのシャットダウンでエラーが発生しました: %v", err)
+		log.Error("サーバーのシャットダウンでエラーが発生しました", logger.Err(err))
 	} else {
-		log.Println("サーバーが正常にシャットダウンされました")
+		log.Info("サーバーが正常にシャットダウンされました")
 	}
 }
 
 // runMigrations はデータベースマイグレーションを実行する
-func runMigrations(db *database.DB) error {
-	log.Println("データベースマイグレーションを実行しています...")
+func runMigrations(db *database.DB, log logger.Logger) error {
+	log.Info("データベースマイグレーションを実行しています...")
 
 	// backendディレクトリを見つける
 	backendDir, err := findBackendDirectory()
@@ -117,7 +125,7 @@ func runMigrations(db *database.DB) error {
 
 	// マイグレーションディレクトリのパス
 	migrationDir := filepath.Join(backendDir, "migrations")
-	log.Printf("マイグレーションディレクトリ: %s", migrationDir)
+	log.Info("マイグレーションディレクトリを設定しました", logger.String("path", migrationDir))
 
 	// マイグレーションファイルのパス
 	migrationFiles := []string{
@@ -127,25 +135,25 @@ func runMigrations(db *database.DB) error {
 	}
 
 	for _, file := range migrationFiles {
-		if err := executeMigrationFile(db, file); err != nil {
+		if err := executeMigrationFile(db, file, log); err != nil {
 			return err
 		}
 	}
 
-	log.Println("データベースマイグレーションが完了しました")
+	log.Info("データベースマイグレーションが完了しました")
 	return nil
 }
 
 // executeMigrationFile は単一のマイグレーションファイルを実行する
-func executeMigrationFile(db *database.DB, filename string) error {
-	log.Printf("マイグレーションファイルを実行中: %s", filename)
+func executeMigrationFile(db *database.DB, filename string, log logger.Logger) error {
+	log.Info("マイグレーションファイルを実行中", logger.String("file", filename))
 
 	// ファイルの読み込み
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		// ファイルが存在しない場合はスキップ
 		if os.IsNotExist(err) {
-			log.Printf("マイグレーションファイルが見つかりません（スキップ）: %s", filename)
+			log.Warn("マイグレーションファイルが見つかりません（スキップ）", logger.String("file", filename))
 			return nil
 		}
 		return err
@@ -156,7 +164,7 @@ func executeMigrationFile(db *database.DB, filename string) error {
 		return err
 	}
 
-	log.Printf("マイグレーションファイルの実行が完了しました: %s", filename)
+	log.Info("マイグレーションファイルの実行が完了しました", logger.String("file", filename))
 	return nil
 }
 
