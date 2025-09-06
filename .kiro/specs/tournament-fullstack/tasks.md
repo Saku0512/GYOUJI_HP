@@ -73,14 +73,23 @@
     - 認証ストアの単体テスト作成
     - _要件: 1.1, 1.2, 1.4, 1.5, 8.4_
 
-  - [ ] 3.2 トーナメントストアの作成
+  - [x] 3.2 トーナメントストアの作成
+
+
+
+
+
     - tournamentStore の実装（tournaments, currentSport, loading, error 状態管理）
     - fetchTournaments, updateMatch, switchSport, refreshData アクション実装
     - データキャッシュとリアルタイム更新ロジック
     - トーナメントストアの単体テスト作成
     - _要件: 2.1, 2.2, 4.1, 4.2, 4.5, 8.1, 8.2_
 
-  - [ ] 3.3 UIストアの作成
+  - [x] 3.3 UIストアの作成
+
+
+
+
     - uiStore の実装（notifications, loading, theme 状態管理）
     - showNotification, setLoading, clearNotifications アクション実装
     - 通知システムとローディング状態の管理
@@ -88,28 +97,50 @@
     - _要件: 7.1, 7.2, 7.5_
 
 - [ ] 4. 再利用可能コンポーネントの実装
-  - [ ] 4.1 TournamentBracket コンポーネントの作成
+  - [x] 4.1 TournamentBracket コンポーネントの作成
+
+
+
+
     - ブラケット形式でのトーナメント表示コンポーネント実装
     - レスポンシブデザインとモバイル最適化
     - 試合結果の視覚的表現と管理者向け編集リンク
     - TournamentBracket コンポーネントのテスト作成
     - _要件: 2.1, 2.2, 2.3, 5.1, 5.2, 5.3_
 
-  - [ ] 4.2 MatchCard コンポーネントの作成
+  - [x] 4.2 MatchCard コンポーネントの作成
+
+
+
+
+
+
+
+
     - 個別試合情報表示コンポーネントの実装
     - スコア表示、試合ステータス表示、編集モード切り替え
     - タッチフレンドリーなインターフェース
     - MatchCard コンポーネントのテスト作成
     - _要件: 2.3, 2.4, 3.2, 5.2_
 
-  - [ ] 4.3 AdminMatchForm コンポーネントの作成
+  - [x] 4.3 AdminMatchForm コンポーネントの作成
+
+
+
+
+
     - 試合結果入力フォームコンポーネントの実装
     - リアルタイム検証とエラーハンドリング
     - 送信処理と成功/エラーフィードバック
     - AdminMatchForm コンポーネントのテスト作成
     - _要件: 3.3, 3.4, 7.1, 7.4_
 
-  - [ ] 4.4 共通UIコンポーネントの作成
+  - [x] 4.4 共通UIコンポーネントの作成
+
+
+
+
+
     - LoadingSpinner, NotificationToast, Modal コンポーネントの実装
     - Button, Input, Select などの基本UIコンポーネント
     - アクセシビリティ対応とキーボードナビゲーション

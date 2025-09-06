@@ -40,7 +40,6 @@ declare module '$env/static/private' {
 	export const WT_PROFILE_ID: string;
 	export const npm_config_noproxy: string;
 	export const HOME: string;
-	export const OLDPWD: string;
 	export const NVM_BIN: string;
 	export const npm_package_json: string;
 	export const NVM_INC: string;
@@ -156,7 +155,6 @@ declare module '$env/dynamic/private' {
 		WT_PROFILE_ID: string;
 		npm_config_noproxy: string;
 		HOME: string;
-		OLDPWD: string;
 		NVM_BIN: string;
 		npm_package_json: string;
 		NVM_INC: string;
