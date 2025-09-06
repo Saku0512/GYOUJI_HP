@@ -86,37 +86,64 @@
   {/if}
   
   <div class="select-wrapper">
-    <select
-      bind:this={selectElement}
-      {id}={selectId}
-      {name}
-      {disabled}
-      {required}
-      {multiple}
-      bind:value
-      class={classes}
-      on:change={handleChange}
-      on:focus={handleFocus}
-      on:blur={handleBlur}
-      on:keydown={handleKeydown}
-      aria-describedby={helperText || errorMessage ? `${selectId}-help` : undefined}
-      aria-invalid={errorMessage ? 'true' : 'false'}
-    >
-      {#if !multiple && placeholder}
-        <option value="" disabled selected={!value}>
-          {placeholder}
-        </option>
-      {/if}
-      
-      {#each options as option}
-        <option
-          value={option.value}
-          disabled={option.disabled || false}
-        >
-          {option.label}
-        </option>
-      {/each}
-    </select>
+    {#if multiple}
+      <select
+        bind:this={selectElement}
+        id={selectId}
+        {name}
+        {disabled}
+        {required}
+        multiple
+        {value}
+        class={classes}
+        on:change={handleChange}
+        on:focus={handleFocus}
+        on:blur={handleBlur}
+        on:keydown={handleKeydown}
+        aria-describedby={helperText || errorMessage ? `${selectId}-help` : undefined}
+        aria-invalid={errorMessage ? 'true' : 'false'}
+      >
+        {#each options as option}
+          <option
+            value={option.value}
+            disabled={option.disabled || false}
+          >
+            {option.label}
+          </option>
+        {/each}
+      </select>
+    {:else}
+      <select
+        bind:this={selectElement}
+        id={selectId}
+        {name}
+        {disabled}
+        {required}
+        bind:value
+        class={classes}
+        on:change={handleChange}
+        on:focus={handleFocus}
+        on:blur={handleBlur}
+        on:keydown={handleKeydown}
+        aria-describedby={helperText || errorMessage ? `${selectId}-help` : undefined}
+        aria-invalid={errorMessage ? 'true' : 'false'}
+      >
+        {#if placeholder}
+          <option value="" disabled selected={!value}>
+            {placeholder}
+          </option>
+        {/if}
+        
+        {#each options as option}
+          <option
+            value={option.value}
+            disabled={option.disabled || false}
+          >
+            {option.label}
+          </option>
+        {/each}
+      </select>
+    {/if}
     
     {#if !multiple}
       <div class="select-arrow" aria-hidden="true">

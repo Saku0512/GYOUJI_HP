@@ -1,24 +1,10 @@
+import { D as getContext, G as escape_html, B as pop, z as push } from "../../chunks/index2.js";
 import "clsx";
-import { x as getContext, v as pop, t as push } from "../../chunks/index.js";
-import { n as noop } from "../../chunks/equality.js";
+import "../../chunks/state.svelte.js";
 import "@sveltejs/kit/internal";
-import { w as writable } from "../../chunks/exports.js";
+import "../../chunks/exports.js";
 import "../../chunks/utils.js";
-const CONTENT_REGEX = /[&<]/g;
-function escape_html(value, is_attr) {
-  const str = String(value ?? "");
-  const pattern = CONTENT_REGEX;
-  pattern.lastIndex = 0;
-  let escaped = "";
-  let last = 0;
-  while (pattern.test(str)) {
-    const i = pattern.lastIndex - 1;
-    const ch = str[i];
-    escaped += str.substring(last, i) + (ch === "&" ? "&amp;" : ch === '"' ? "&quot;" : "&lt;");
-    last = i + 1;
-  }
-  return escaped + str.substring(last);
-}
+import { w as writable } from "../../chunks/index.js";
 function create_updated_store() {
   const { set, subscribe } = writable(false);
   {
@@ -28,19 +14,6 @@ function create_updated_store() {
       check: async () => false
     };
   }
-}
-const is_legacy = noop.toString().includes("$$") || /function \w+\(\) \{\}/.test(noop.toString());
-if (is_legacy) {
-  ({
-    data: {},
-    form: null,
-    error: null,
-    params: {},
-    route: { id: null },
-    state: {},
-    status: -1,
-    url: new URL("https://example.com")
-  });
 }
 const stores = {
   updated: /* @__PURE__ */ create_updated_store()

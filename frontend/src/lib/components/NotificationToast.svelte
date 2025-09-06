@@ -27,18 +27,8 @@
     dispatch('close');
   }
   
-  function handleKeydown(event) {
-    if (event.key === 'Escape' && dismissible) {
-      close();
-    }
-  }
-  
-  // アクセシビリティ: フォーカス管理
+  // アクセシビリティ: 要素の参照
   let toastElement;
-  
-  $: if (visible && toastElement) {
-    toastElement.focus();
-  }
 </script>
 
 {#if visible}
@@ -48,8 +38,6 @@
     role="alert"
     aria-live="polite"
     aria-atomic="true"
-    tabindex="-1"
-    on:keydown={handleKeydown}
   >
     <div class="toast-content">
       <div class="toast-icon">

@@ -96,7 +96,7 @@
     <input
       bind:this={inputElement}
       {type}
-      {id}={inputId}
+      id={inputId}
       {name}
       {placeholder}
       {disabled}

@@ -106,6 +106,7 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby={title ? 'modal-title' : undefined}
+    tabindex="0"
   >
     <div
       bind:this={modalElement}
