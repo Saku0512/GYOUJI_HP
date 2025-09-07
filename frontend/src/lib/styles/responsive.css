@@ -1,0 +1,386 @@
+/* レスポンシブデザイン用CSS */
+
+/* ブレークポイント定義 */
+:root {
+  --breakpoint-mobile: 480px;
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-large: 1200px;
+  
+  /* レスポンシブ間隔 */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-xxl: 3rem;
+  
+  /* レスポンシブフォントサイズ */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  
+  /* タッチターゲットサイズ */
+  --touch-target-min: 44px;
+  --touch-target-comfortable: 48px;
+}
+
+/* ベースレスポンシブクラス */
+.responsive-container {
+  width: 100%;
+  max-width: var(--breakpoint-large);
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+}
+
+/* グリッドシステム */
+.responsive-grid {
+  display: grid;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+.responsive-grid.cols-1 {
+  grid-template-columns: 1fr;
+}
+
+.responsive-grid.cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.responsive-grid.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.responsive-grid.cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* フレックスボックスユーティリティ */
+.responsive-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.responsive-flex.direction-column {
+  flex-direction: column;
+}
+
+.responsive-flex.justify-center {
+  justify-content: center;
+}
+
+.responsive-flex.justify-between {
+  justify-content: space-between;
+}
+
+.responsive-flex.align-center {
+  align-items: center;
+}
+
+.responsive-flex.align-stretch {
+  align-items: stretch;
+}
+
+/* タッチフレンドリーなインターフェース */
+.touch-friendly {
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-friendly:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.touch-friendly:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* レスポンシブテキスト */
+.responsive-text {
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+}
+
+.responsive-text.size-xs { font-size: var(--font-size-xs); }
+.responsive-text.size-sm { font-size: var(--font-size-sm); }
+.responsive-text.size-lg { font-size: var(--font-size-lg); }
+.responsive-text.size-xl { font-size: var(--font-size-xl); }
+.responsive-text.size-2xl { font-size: var(--font-size-2xl); }
+.responsive-text.size-3xl { font-size: var(--font-size-3xl); }
+.responsive-text.size-4xl { font-size: var(--font-size-4xl); }
+
+/* レスポンシブ画像 */
+.responsive-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* レスポンシブビデオ */
+.responsive-video {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%; /* 16:9 アスペクト比 */
+}
+
+.responsive-video iframe,
+.responsive-video video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* 表示/非表示ユーティリティ */
+.show-mobile { display: none; }
+.show-tablet { display: none; }
+.show-desktop { display: block; }
+
+.hide-mobile { display: block; }
+.hide-tablet { display: block; }
+.hide-desktop { display: none; }
+
+/* モバイル (< 768px) */
+@media (max-width: 767px) {
+  :root {
+    --spacing-md: 0.75rem;
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+    --spacing-xxl: 2rem;
+  }
+
+  .responsive-container {
+    padding: 0 var(--spacing-sm);
+  }
+
+  .responsive-grid.cols-2,
+  .responsive-grid.cols-3,
+  .responsive-grid.cols-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .responsive-flex {
+    flex-direction: column;
+  }
+
+  .responsive-flex.mobile-row {
+    flex-direction: row;
+  }
+
+  .touch-friendly {
+    min-height: var(--touch-target-comfortable);
+    padding: var(--spacing-md);
+  }
+
+  .responsive-text {
+    font-size: var(--font-size-sm);
+  }
+
+  .responsive-text.size-2xl { font-size: var(--font-size-xl); }
+  .responsive-text.size-3xl { font-size: var(--font-size-2xl); }
+  .responsive-text.size-4xl { font-size: var(--font-size-3xl); }
+
+  .show-mobile { display: block; }
+  .hide-mobile { display: none; }
+  .show-desktop { display: none; }
+  .hide-desktop { display: block; }
+}
+
+/* タブレット (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .responsive-grid.cols-3,
+  .responsive-grid.cols-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .show-tablet { display: block; }
+  .hide-tablet { display: none; }
+}
+
+/* デスクトップ (>= 1024px) */
+@media (min-width: 1024px) {
+  .responsive-container {
+    padding: 0 var(--spacing-lg);
+  }
+
+  .show-desktop { display: block; }
+  .hide-desktop { display: none; }
+}
+
+/* 大画面 (>= 1200px) */
+@media (min-width: 1200px) {
+  .responsive-container {
+    padding: 0 var(--spacing-xl);
+  }
+}
+
+/* 横向きモバイル */
+@media (max-width: 767px) and (orientation: landscape) {
+  .responsive-flex.landscape-row {
+    flex-direction: row;
+  }
+
+  .responsive-grid.landscape-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 高解像度ディスプレイ対応 */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .responsive-image.high-dpi {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* プリント用スタイル */
+@media print {
+  .responsive-container {
+    max-width: none;
+    padding: 0;
+  }
+
+  .touch-friendly:hover,
+  .touch-friendly:active {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .show-mobile,
+  .show-tablet,
+  .show-desktop {
+    display: block !important;
+  }
+
+  .hide-mobile,
+  .hide-tablet,
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* アクセシビリティ対応 */
+@media (prefers-reduced-motion: reduce) {
+  .touch-friendly {
+    transition: none;
+  }
+
+  .touch-friendly:hover,
+  .touch-friendly:active {
+    transform: none;
+  }
+}
+
+/* ハイコントラストモード */
+@media (prefers-contrast: high) {
+  .touch-friendly {
+    border: 2px solid currentColor;
+  }
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  .touch-friendly {
+    background-color: #374151;
+    color: #f9fafb;
+  }
+}
+
+/* フォーカス管理 */
+.touch-friendly:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* スクロール最適化 */
+.responsive-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.responsive-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.responsive-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.responsive-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.responsive-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* レスポンシブテーブル */
+.responsive-table {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.responsive-table table {
+  width: 100%;
+  min-width: 600px;
+}
+
+@media (max-width: 767px) {
+  .responsive-table.stack-mobile table,
+  .responsive-table.stack-mobile thead,
+  .responsive-table.stack-mobile tbody,
+  .responsive-table.stack-mobile th,
+  .responsive-table.stack-mobile td,
+  .responsive-table.stack-mobile tr {
+    display: block;
+  }
+
+  .responsive-table.stack-mobile thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+
+  .responsive-table.stack-mobile tr {
+    border: 1px solid #ccc;
+    margin-bottom: 10px;
+    padding: 10px;
+  }
+
+  .responsive-table.stack-mobile td {
+    border: none;
+    position: relative;
+    padding-left: 50% !important;
+  }
+
+  .responsive-table.stack-mobile td:before {
+    content: attr(data-label) ": ";
+    position: absolute;
+    left: 6px;
+    width: 45%;
+    padding-right: 10px;
+    white-space: nowrap;
+    font-weight: bold;
+  }
+}

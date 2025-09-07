@@ -1,4 +1,5 @@
 /* グローバルスタイル */
+@import './lib/styles/animations.css';
 
 /* リセットCSS */
 * {

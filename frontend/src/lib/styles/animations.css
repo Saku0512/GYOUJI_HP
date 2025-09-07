@@ -1,0 +1,554 @@
+/* アニメーションとトランジション用CSS */
+
+/* CSS変数でアニメーション設定を管理 */
+:root {
+  /* アニメーション時間 */
+  --animation-duration-fast: 0.15s;
+  --animation-duration-normal: 0.3s;
+  --animation-duration-slow: 0.5s;
+  --animation-duration-slower: 0.75s;
+
+  /* イージング関数 */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* トランジション設定 */
+  --transition-all: all var(--animation-duration-normal) var(--ease-in-out);
+  --transition-transform: transform var(--animation-duration-normal) var(--ease-out);
+  --transition-opacity: opacity var(--animation-duration-normal) var(--ease-in-out);
+  --transition-colors: color var(--animation-duration-fast) var(--ease-in-out),
+                      background-color var(--animation-duration-fast) var(--ease-in-out),
+                      border-color var(--animation-duration-fast) var(--ease-in-out);
+}
+
+/* ベーストランジションクラス */
+.transition-all {
+  transition: var(--transition-all);
+}
+
+.transition-transform {
+  transition: var(--transition-transform);
+}
+
+.transition-opacity {
+  transition: var(--transition-opacity);
+}
+
+.transition-colors {
+  transition: var(--transition-colors);
+}
+
+.transition-fast {
+  transition-duration: var(--animation-duration-fast);
+}
+
+.transition-slow {
+  transition-duration: var(--animation-duration-slow);
+}
+
+/* フェードアニメーション */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* スケールアニメーション */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40%, 43% {
+    transform: translateY(-8px);
+  }
+  70% {
+    transform: translateY(-4px);
+  }
+  90% {
+    transform: translateY(-2px);
+  }
+}
+
+/* スライドアニメーション */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* 回転アニメーション */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spinReverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+/* シェイクアニメーション */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-4px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(4px);
+  }
+}
+
+/* ローディングアニメーション */
+@keyframes loading {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loadingDots {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* アニメーションクラス */
+.animate-fadeIn {
+  animation: fadeIn var(--animation-duration-normal) var(--ease-in-out);
+}
+
+.animate-fadeOut {
+  animation: fadeOut var(--animation-duration-normal) var(--ease-in-out);
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp var(--animation-duration-normal) var(--ease-out);
+}
+
+.animate-fadeInDown {
+  animation: fadeInDown var(--animation-duration-normal) var(--ease-out);
+}
+
+.animate-fadeInLeft {
+  animation: fadeInLeft var(--animation-duration-normal) var(--ease-out);
+}
+
+.animate-fadeInRight {
+  animation: fadeInRight var(--animation-duration-normal) var(--ease-out);
+}
+
+.animate-scaleIn {
+  animation: scaleIn var(--animation-duration-normal) var(--ease-out);
+}
+
+.animate-scaleOut {
+  animation: scaleOut var(--animation-duration-normal) var(--ease-in);
+}
+
+.animate-pulse {
+  animation: pulse var(--animation-duration-slower) var(--ease-in-out) infinite;
+}
+
+.animate-bounce {
+  animation: bounce var(--animation-duration-slower) var(--ease-bounce);
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft var(--animation-duration-normal) var(--ease-out);
+}
+
+.animate-slideInRight {
+  animation: slideInRight var(--animation-duration-normal) var(--ease-out);
+}
+
+.animate-slideInUp {
+  animation: slideInUp var(--animation-duration-normal) var(--ease-out);
+}
+
+.animate-slideInDown {
+  animation: slideInDown var(--animation-duration-normal) var(--ease-out);
+}
+
+.animate-slideOutLeft {
+  animation: slideOutLeft var(--animation-duration-normal) var(--ease-in);
+}
+
+.animate-slideOutRight {
+  animation: slideOutRight var(--animation-duration-normal) var(--ease-in);
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-spinReverse {
+  animation: spinReverse 1s linear infinite;
+}
+
+.animate-shake {
+  animation: shake var(--animation-duration-slow) var(--ease-in-out);
+}
+
+.animate-loading {
+  animation: loading 1s linear infinite;
+}
+
+/* ホバーエフェクト */
+.hover-lift {
+  transition: var(--transition-transform);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+.hover-scale {
+  transition: var(--transition-transform);
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+.hover-rotate {
+  transition: var(--transition-transform);
+}
+
+.hover-rotate:hover {
+  transform: rotate(5deg);
+}
+
+.hover-glow {
+  transition: box-shadow var(--animation-duration-normal) var(--ease-in-out);
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+/* フォーカスエフェクト */
+.focus-ring {
+  transition: box-shadow var(--animation-duration-fast) var(--ease-in-out);
+}
+
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+}
+
+/* ページ遷移アニメーション */
+.page-enter {
+  animation: fadeInUp var(--animation-duration-normal) var(--ease-out);
+}
+
+.page-exit {
+  animation: fadeOut var(--animation-duration-fast) var(--ease-in);
+}
+
+/* モーダル/オーバーレイアニメーション */
+.modal-enter {
+  animation: scaleIn var(--animation-duration-normal) var(--ease-out);
+}
+
+.modal-exit {
+  animation: scaleOut var(--animation-duration-fast) var(--ease-in);
+}
+
+.overlay-enter {
+  animation: fadeIn var(--animation-duration-fast) var(--ease-in-out);
+}
+
+.overlay-exit {
+  animation: fadeOut var(--animation-duration-fast) var(--ease-in-out);
+}
+
+/* 通知アニメーション */
+.notification-enter {
+  animation: slideInRight var(--animation-duration-normal) var(--ease-out);
+}
+
+.notification-exit {
+  animation: slideOutRight var(--animation-duration-normal) var(--ease-in);
+}
+
+/* ローディング状態のアニメーション */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+.loading-dots > span {
+  animation: loadingDots 1.4s ease-in-out infinite both;
+}
+
+.loading-dots > span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loading-dots > span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.loading-progress {
+  position: relative;
+  overflow: hidden;
+}
+
+.loading-progress::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: progress 1.5s ease-in-out infinite;
+}
+
+/* データ更新時のアニメーション */
+.data-refresh {
+  animation: pulse var(--animation-duration-normal) var(--ease-in-out);
+}
+
+.data-updated {
+  animation: bounce var(--animation-duration-slow) var(--ease-bounce);
+}
+
+/* エラー状態のアニメーション */
+.error-shake {
+  animation: shake var(--animation-duration-slow) var(--ease-in-out);
+}
+
+/* 成功状態のアニメーション */
+.success-bounce {
+  animation: bounce var(--animation-duration-slow) var(--ease-bounce);
+}
+
+/* スタガードアニメーション（順次表示） */
+.stagger-item {
+  opacity: 0;
+  animation: fadeInUp var(--animation-duration-normal) var(--ease-out) forwards;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0.1s; }
+.stagger-item:nth-child(2) { animation-delay: 0.2s; }
+.stagger-item:nth-child(3) { animation-delay: 0.3s; }
+.stagger-item:nth-child(4) { animation-delay: 0.4s; }
+.stagger-item:nth-child(5) { animation-delay: 0.5s; }
+.stagger-item:nth-child(6) { animation-delay: 0.6s; }
+.stagger-item:nth-child(7) { animation-delay: 0.7s; }
+.stagger-item:nth-child(8) { animation-delay: 0.8s; }
+.stagger-item:nth-child(9) { animation-delay: 0.9s; }
+.stagger-item:nth-child(10) { animation-delay: 1.0s; }
+
+/* アクセシビリティ: アニメーション無効化 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-pulse,
+  .animate-spin,
+  .animate-loading,
+  .loading-spinner,
+  .loading-dots > span {
+    animation: none !important;
+  }
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  .hover-glow:hover {
+    box-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
+  }
+
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.5);
+  }
+}
+
+/* ハイコントラストモード対応 */
+@media (prefers-contrast: high) {
+  .hover-glow:hover,
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 3px #000;
+  }
+}
+
+/* プリント用（アニメーション無効化） */
+@media print {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

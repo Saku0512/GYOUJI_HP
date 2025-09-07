@@ -4,6 +4,10 @@
   import { uiStore, uiActions } from '$lib/stores/ui.js';
   import TournamentBracket from '$lib/components/TournamentBracket.svelte';
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
+  import ResponsiveLayout from '$lib/components/ResponsiveLayout.svelte';
+  import ResponsiveGrid from '$lib/components/ResponsiveGrid.svelte';
+  import AnimatedTransition from '$lib/components/AnimatedTransition.svelte';
+  import StaggeredList from '$lib/components/StaggeredList.svelte';
 
   // ストアの状態を購読
   $: tournament = $tournamentStore;
@@ -197,96 +201,111 @@
   <meta name="description" content="バレーボール、卓球、サッカーのトーナメント結果をリアルタイムで確認できます" />
 </svelte:head>
 
-<div class="homepage">
-  <div class="container">
-    <!-- ページヘッダー -->
-    <div class="page-header">
-      <h1 class="page-title">トーナメント管理システム</h1>
-      <p class="page-description">
-        リアルタイムでトーナメントの進行状況を確認できます
-      </p>
-      
-      <!-- 更新ボタン -->
-      <div class="header-actions">
-        <button 
-          class="refresh-button"
-          on:click={handleRefresh}
-          disabled={tournament.loading || ui.loading}
-          aria-label="データを更新"
-        >
-          <span class="refresh-icon" class:spinning={tournament.loading || ui.loading}>🔄</span>
-          更新
-        </button>
+<ResponsiveLayout let:screenSize let:screenWidth>
+  <div class="homepage">
+    <ResponsiveLayout container={true} padding={true}>
+      <!-- ページヘッダー -->
+      <div class="page-header">
+        <h1 class="page-title responsive-text size-4xl">トーナメント管理システム</h1>
+        <p class="page-description responsive-text size-lg">
+          リアルタイムでトーナメントの進行状況を確認できます
+        </p>
         
-        {#if tournament.lastUpdated}
-          <span class="last-updated">
-            最終更新: {new Date(tournament.lastUpdated).toLocaleTimeString('ja-JP')}
-          </span>
-        {/if}
+        <!-- 更新ボタン -->
+        <div class="header-actions responsive-flex justify-center align-center">
+          <button 
+            class="refresh-button touch-friendly"
+            on:click={handleRefresh}
+            disabled={tournament.loading || ui.loading}
+            aria-label="データを更新"
+          >
+            <span class="refresh-icon" class:spinning={tournament.loading || ui.loading}>🔄</span>
+            更新
+          </button>
+          
+          {#if tournament.lastUpdated}
+            <span class="last-updated responsive-text size-sm">
+              最終更新: {new Date(tournament.lastUpdated).toLocaleTimeString('ja-JP')}
+            </span>
+          {/if}
+        </div>
       </div>
-    </div>
 
-    <!-- スポーツタブ -->
-    <div class="sports-tabs">
-      <div class="tabs-container">
-        {#each sports as sport}
+      <!-- スポーツタブ -->
+      <div class="sports-tabs">
+        <StaggeredList 
+          items={sports.map(sport => ({ ...sport, id: sport.key }))}
+          staggerDelay={150}
+          animationType="scaleIn"
+          tag="div"
+          itemTag="div"
+          className="tabs-grid"
+          itemClassName="tab-item"
+        >
           <button
-            class="sport-tab"
+            slot="default"
+            let:item={sport}
+            class="sport-tab touch-friendly hover-scale transition-all"
             class:active={tournament.currentSport === sport.key}
             on:click={() => handleSportChange(sport.key)}
             disabled={tournament.loading}
             aria-label="{sport.name}のトーナメントを表示"
           >
             <span class="sport-icon">{sport.icon}</span>
-            <span class="sport-name">{sport.name}</span>
+            <span class="sport-name responsive-text size-sm">{sport.name}</span>
           </button>
-        {/each}
+        </StaggeredList>
       </div>
-    </div>
 
-    <!-- メインコンテンツ -->
-    <div class="main-content">
-      {#if tournament.error}
-        <!-- エラー表示 -->
-        <div class="error-container">
-          <div class="error-message">
-            <h3>エラーが発生しました</h3>
-            <p>{tournament.error}</p>
-            <button class="retry-button" on:click={handleRefresh}>
-              再試行
-            </button>
+      <!-- メインコンテンツ -->
+      <div class="main-content">
+        {#if tournament.error}
+          <!-- エラー表示 -->
+          <div class="error-container">
+            <div class="error-message">
+              <h3>エラーが発生しました</h3>
+              <p>{tournament.error}</p>
+              <button class="retry-button touch-friendly" on:click={handleRefresh}>
+                再試行
+              </button>
+            </div>
           </div>
-        </div>
-      {:else if tournament.loading && !currentTournamentData}
-        <!-- 初回ローディング -->
-        <div class="loading-container">
-          <LoadingSpinner size="large" />
-          <p class="loading-text">トーナメントデータを読み込み中...</p>
-        </div>
-      {:else if currentTournamentData && matches.length > 0}
-        <!-- トーナメントブラケット表示 -->
-        <div class="tournament-container">
-          <TournamentBracket 
-            sport={tournament.currentSport}
-            {matches}
-            isAdmin={false}
-          />
-        </div>
-      {:else}
-        <!-- データなし表示 -->
-        <div class="no-data-container">
-          <div class="no-data-message">
-            <h3>トーナメントデータがありません</h3>
-            <p>{getSportName(tournament.currentSport)}のトーナメントはまだ開始されていません。</p>
-            <button class="refresh-button" on:click={handleRefresh}>
-              データを確認
-            </button>
+        {:else if tournament.loading && !currentTournamentData}
+          <!-- 初回ローディング -->
+          <div class="loading-container">
+            <LoadingSpinner size="large" />
+            <p class="loading-text responsive-text size-lg">トーナメントデータを読み込み中...</p>
           </div>
-        </div>
-      {/if}
-    </div>
+        {:else if currentTournamentData && matches.length > 0}
+          <!-- トーナメントブラケット表示 -->
+          <AnimatedTransition 
+            show={true}
+            type="fadeInUp"
+            duration={500}
+            className="tournament-container"
+          >
+            <TournamentBracket 
+              sport={tournament.currentSport}
+              {matches}
+              isAdmin={false}
+            />
+          </AnimatedTransition>
+        {:else}
+          <!-- データなし表示 -->
+          <div class="no-data-container">
+            <div class="no-data-message">
+              <h3>トーナメントデータがありません</h3>
+              <p>{getSportName(tournament.currentSport)}のトーナメントはまだ開始されていません。</p>
+              <button class="refresh-button touch-friendly" on:click={handleRefresh}>
+                データを確認
+              </button>
+            </div>
+          </div>
+        {/if}
+      </div>
+    </ResponsiveLayout>
   </div>
-</div>
+</ResponsiveLayout>
 
 <style>
   .homepage {
@@ -383,9 +402,9 @@
     margin-bottom: 3rem;
   }
 
-  .tabs-container {
-    display: flex;
-    justify-content: center;
+  .tabs-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
     background-color: #f8f9fa;
     padding: 0.5rem;
@@ -393,6 +412,10 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     max-width: 600px;
     margin: 0 auto;
+  }
+
+  .tab-item {
+    width: 100%;
   }
 
   .sport-tab {
@@ -412,7 +435,6 @@
 
   .sport-tab:hover:not(:disabled) {
     background-color: #e9ecef;
-    transform: translateY(-2px);
   }
 
   .sport-tab.active {
@@ -554,8 +576,8 @@
       gap: 0.5rem;
     }
 
-    .tabs-container {
-      flex-direction: column;
+    .tabs-grid {
+      grid-template-columns: 1fr;
       gap: 0.25rem;
     }
 

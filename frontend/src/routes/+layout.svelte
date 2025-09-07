@@ -1,5 +1,6 @@
 <script>
   import '../app.css';
+  import '../lib/styles/responsive.css';
   import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
@@ -9,16 +10,50 @@
   import { initializeSecurity } from '$lib/utils/security.js';
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
   import NotificationToast from '$lib/components/NotificationToast.svelte';
+  import ResponsiveLayout from '$lib/components/ResponsiveLayout.svelte';
+  import ResponsiveNavigation from '$lib/components/ResponsiveNavigation.svelte';
+  import PageTransition from '$lib/components/PageTransition.svelte';
 
   // ストアの状態を購読
   $: auth = $authStore;
   $: ui = $uiStore;
 
-  // モバイルメニューの表示状態
-  let mobileMenuOpen = false;
-  
   // 認証監視のクリーンアップ関数
   let authMonitoringCleanup;
+
+  // ナビゲーションアイテムの定義
+  $: navigationItems = [
+    {
+      key: 'home',
+      label: 'ホーム',
+      href: '/',
+      icon: '🏠'
+    },
+    ...(auth.isAuthenticated ? [
+      {
+        key: 'admin',
+        label: '管理ダッシュボード',
+        href: '/admin',
+        icon: '⚙️'
+      },
+      {
+        key: 'logout',
+        label: 'ログアウト',
+        onClick: handleLogout,
+        icon: '🚪'
+      }
+    ] : [
+      {
+        key: 'login',
+        label: '管理者ログイン',
+        href: '/login',
+        icon: '🔑'
+      }
+    ])
+  ];
+
+  // 現在のアクティブページ
+  $: activeNavItem = getActiveNavItem($page.url.pathname);
 
   // 初期化処理
   onMount(() => {
@@ -57,200 +92,102 @@
     }
   }
 
-  // モバイルメニューの切り替え
-  function toggleMobileMenu() {
-    mobileMenuOpen = !mobileMenuOpen;
-  }
-
-  // モバイルメニューを閉じる
-  function closeMobileMenu() {
-    mobileMenuOpen = false;
-  }
-
   // 通知の削除処理
   function handleNotificationClose(notificationId) {
     uiActions.removeNotification(notificationId);
   }
 
-  // キーボードナビゲーション
-  function handleKeydown(event) {
-    // Escapeキーでモバイルメニューを閉じる
-    if (event.key === 'Escape' && mobileMenuOpen) {
-      closeMobileMenu();
-    }
+  // 現在のアクティブページを取得
+  function getActiveNavItem(pathname) {
+    if (pathname === '/') return 'home';
+    if (pathname.startsWith('/admin')) return 'admin';
+    if (pathname.startsWith('/login')) return 'login';
+    return '';
   }
 
-  // 現在のページがアクティブかどうかを判定
-  function isActivePage(path) {
-    return $page.url.pathname === path;
+  // ナビゲーションアイテムクリック処理
+  function handleNavItemClick(event) {
+    const { item } = event.detail;
+    if (item.onClick) {
+      item.onClick();
+    }
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<ResponsiveLayout>
+  <div class="app-layout">
+    <!-- ヘッダー -->
+    <header class="header">
+      <ResponsiveNavigation
+        brand="トーナメント管理"
+        brandHref="/"
+        items={navigationItems}
+        activeItem={activeNavItem}
+        on:itemClick={handleNavItemClick}
+        className="main-navigation"
+      />
+    </header>
 
-<div class="app-layout">
-  <!-- ヘッダー -->
-  <header class="header">
-    <div class="container">
-      <nav class="navbar">
-        <!-- ロゴ -->
-        <div class="navbar-brand">
-          <a href="/" class="brand-link">
-            <h1 class="brand-title">トーナメント管理</h1>
-          </a>
-        </div>
+    <!-- メインコンテンツ -->
+    <main class="main-content">
+      <PageTransition transitionType="fade" duration={300}>
+        <slot />
+      </PageTransition>
+    </main>
 
-        <!-- デスクトップナビゲーション -->
-        <div class="navbar-nav desktop-nav">
-          <a 
-            href="/" 
-            class="nav-link"
-            class:active={isActivePage('/')}
-          >
-            ホーム
-          </a>
+    <!-- フッター -->
+    <footer class="footer">
+      <ResponsiveLayout container={true} padding={true}>
+        <div class="footer-content">
+          <div class="footer-section">
+            <h3 class="footer-title">トーナメント管理システム</h3>
+            <p class="footer-description">
+              バレーボール、卓球、8人制サッカーのトーナメント管理
+            </p>
+          </div>
           
-          {#if auth.isAuthenticated}
-            <a 
-              href="/admin" 
-              class="nav-link"
-              class:active={isActivePage('/admin')}
-            >
-              管理ダッシュボード
-            </a>
-            <button 
-              class="nav-button logout-button"
-              on:click={handleLogout}
-              disabled={auth.loading}
-            >
-              ログアウト
-            </button>
-          {:else}
-            <a 
-              href="/login" 
-              class="nav-link login-link"
-              class:active={isActivePage('/login')}
-            >
-              管理者ログイン
-            </a>
-          {/if}
+          <div class="footer-section">
+            <h4 class="footer-subtitle">リンク</h4>
+            <ul class="footer-links">
+              <li><a href="/">ホーム</a></li>
+              {#if auth.isAuthenticated}
+                <li><a href="/admin">管理ダッシュボード</a></li>
+              {:else}
+                <li><a href="/login">管理者ログイン</a></li>
+              {/if}
+            </ul>
+          </div>
         </div>
+        
+        <div class="footer-bottom">
+          <p>&copy; 2024 トーナメント管理システム. All rights reserved.</p>
+        </div>
+      </ResponsiveLayout>
+    </footer>
 
-        <!-- モバイルメニューボタン -->
-        <button 
-          class="mobile-menu-button"
-          on:click={toggleMobileMenu}
-          aria-label="メニューを開く"
-          aria-expanded={mobileMenuOpen}
-        >
-          <span class="hamburger-line" class:open={mobileMenuOpen}></span>
-          <span class="hamburger-line" class:open={mobileMenuOpen}></span>
-          <span class="hamburger-line" class:open={mobileMenuOpen}></span>
-        </button>
-      </nav>
-    </div>
-
-    <!-- モバイルナビゲーション -->
-    {#if mobileMenuOpen}
-      <div class="mobile-nav" class:open={mobileMenuOpen}>
-        <div class="mobile-nav-content">
-          <a 
-            href="/" 
-            class="mobile-nav-link"
-            class:active={isActivePage('/')}
-            on:click={closeMobileMenu}
-          >
-            ホーム
-          </a>
-          
-          {#if auth.isAuthenticated}
-            <a 
-              href="/admin" 
-              class="mobile-nav-link"
-              class:active={isActivePage('/admin')}
-              on:click={closeMobileMenu}
-            >
-              管理ダッシュボード
-            </a>
-            <button 
-              class="mobile-nav-button logout-button"
-              on:click={() => { handleLogout(); closeMobileMenu(); }}
-              disabled={auth.loading}
-            >
-              ログアウト
-            </button>
-          {:else}
-            <a 
-              href="/login" 
-              class="mobile-nav-link login-link"
-              class:active={isActivePage('/login')}
-              on:click={closeMobileMenu}
-            >
-              管理者ログイン
-            </a>
-          {/if}
+    <!-- ローディングオーバーレイ -->
+    {#if ui.loading || auth.loading}
+      <div class="loading-overlay">
+        <div class="loading-content">
+          <LoadingSpinner size="large" />
+          <p class="loading-text">処理中...</p>
         </div>
       </div>
     {/if}
-  </header>
 
-  <!-- メインコンテンツ -->
-  <main class="main-content">
-    <slot />
-  </main>
-
-  <!-- フッター -->
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-content">
-        <div class="footer-section">
-          <h3 class="footer-title">トーナメント管理システム</h3>
-          <p class="footer-description">
-            バレーボール、卓球、8人制サッカーのトーナメント管理
-          </p>
-        </div>
-        
-        <div class="footer-section">
-          <h4 class="footer-subtitle">リンク</h4>
-          <ul class="footer-links">
-            <li><a href="/">ホーム</a></li>
-            {#if auth.isAuthenticated}
-              <li><a href="/admin">管理ダッシュボード</a></li>
-            {:else}
-              <li><a href="/login">管理者ログイン</a></li>
-            {/if}
-          </ul>
-        </div>
-      </div>
-      
-      <div class="footer-bottom">
-        <p>&copy; 2024 トーナメント管理システム. All rights reserved.</p>
-      </div>
+    <!-- 通知システム -->
+    <div class="notifications-container">
+      {#each ui.notifications as notification (notification.id)}
+        <NotificationToast
+          message={notification.message}
+          type={notification.type}
+          duration={0}
+          on:close={() => handleNotificationClose(notification.id)}
+        />
+      {/each}
     </div>
-  </footer>
-
-  <!-- ローディングオーバーレイ -->
-  {#if ui.loading || auth.loading}
-    <div class="loading-overlay">
-      <div class="loading-content">
-        <LoadingSpinner size="large" />
-        <p class="loading-text">処理中...</p>
-      </div>
-    </div>
-  {/if}
-
-  <!-- 通知システム -->
-  <div class="notifications-container">
-    {#each ui.notifications as notification (notification.id)}
-      <NotificationToast
-        message={notification.message}
-        type={notification.type}
-        duration={0}
-        on:close={() => handleNotificationClose(notification.id)}
-      />
-    {/each}
   </div>
-</div>
+</ResponsiveLayout>
 
 <style>
   .app-layout {
@@ -267,186 +204,6 @@
     position: sticky;
     top: 0;
     z-index: 100;
-  }
-
-  .navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 0;
-  }
-
-  .navbar-brand {
-    flex-shrink: 0;
-  }
-
-  .brand-link {
-    text-decoration: none;
-    color: inherit;
-  }
-
-  .brand-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #007bff;
-    margin: 0;
-  }
-
-  /* デスクトップナビゲーション */
-  .desktop-nav {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-  }
-
-  .nav-link {
-    color: #495057;
-    text-decoration: none;
-    font-weight: 500;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-  }
-
-  .nav-link:hover {
-    color: #007bff;
-    background-color: #f8f9fa;
-    text-decoration: none;
-  }
-
-  .nav-link.active {
-    color: #007bff;
-    background-color: #e3f2fd;
-  }
-
-  .nav-button {
-    background: none;
-    border: 1px solid #007bff;
-    color: #007bff;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-  }
-
-  .nav-button:hover {
-    background-color: #007bff;
-    color: white;
-  }
-
-  .logout-button {
-    border-color: #dc3545;
-    color: #dc3545;
-  }
-
-  .logout-button:hover {
-    background-color: #dc3545;
-    color: white;
-  }
-
-  .login-link {
-    background-color: #007bff;
-    color: white !important;
-  }
-
-  .login-link:hover {
-    background-color: #0056b3;
-  }
-
-  /* モバイルメニューボタン */
-  .mobile-menu-button {
-    display: none;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    width: 40px;
-    height: 40px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .hamburger-line {
-    width: 24px;
-    height: 2px;
-    background-color: #495057;
-    transition: all 0.3s ease;
-    margin: 2px 0;
-  }
-
-  .hamburger-line.open:nth-child(1) {
-    transform: rotate(45deg) translate(5px, 5px);
-  }
-
-  .hamburger-line.open:nth-child(2) {
-    opacity: 0;
-  }
-
-  .hamburger-line.open:nth-child(3) {
-    transform: rotate(-45deg) translate(7px, -6px);
-  }
-
-  /* モバイルナビゲーション */
-  .mobile-nav {
-    display: none;
-    background-color: #fff;
-    border-top: 1px solid #e9ecef;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-
-  .mobile-nav-content {
-    padding: 1rem;
-  }
-
-  .mobile-nav-link {
-    display: block;
-    color: #495057;
-    text-decoration: none;
-    font-weight: 500;
-    padding: 0.75rem 1rem;
-    border-radius: 4px;
-    margin-bottom: 0.5rem;
-    transition: all 0.2s ease;
-  }
-
-  .mobile-nav-link:hover {
-    color: #007bff;
-    background-color: #f8f9fa;
-    text-decoration: none;
-  }
-
-  .mobile-nav-link.active {
-    color: #007bff;
-    background-color: #e3f2fd;
-  }
-
-  .mobile-nav-button {
-    display: block;
-    width: 100%;
-    background: none;
-    border: 1px solid #007bff;
-    color: #007bff;
-    padding: 0.75rem 1rem;
-    border-radius: 4px;
-    font-weight: 500;
-    margin-top: 0.5rem;
-    transition: all 0.2s ease;
-  }
-
-  .mobile-nav-button:hover {
-    background-color: #007bff;
-    color: white;
-  }
-
-  .mobile-nav-button.logout-button {
-    border-color: #dc3545;
-    color: #dc3545;
-  }
-
-  .mobile-nav-button.logout-button:hover {
-    background-color: #dc3545;
-    color: white;
   }
 
   /* メインコンテンツ */
@@ -562,18 +319,6 @@
 
   /* レスポンシブデザイン */
   @media (max-width: 768px) {
-    .desktop-nav {
-      display: none;
-    }
-
-    .mobile-menu-button {
-      display: flex;
-    }
-
-    .mobile-nav {
-      display: block;
-    }
-
     .footer-content {
       grid-template-columns: 1fr;
       gap: 1rem;
@@ -590,16 +335,48 @@
   }
 
   @media (max-width: 480px) {
-    .navbar {
-      padding: 0.75rem 0;
-    }
-
-    .brand-title {
-      font-size: 1.25rem;
-    }
-
     .footer-content {
       padding: 1.5rem 0;
+    }
+  }
+
+  /* ダークモード対応 */
+  @media (prefers-color-scheme: dark) {
+    .header {
+      background-color: #1f2937;
+      border-bottom-color: #374151;
+    }
+
+    .footer {
+      background-color: #111827;
+    }
+
+    .loading-content {
+      background-color: #1f2937;
+      color: #f9fafb;
+    }
+
+    .loading-text {
+      color: #d1d5db;
+    }
+  }
+
+  /* アクセシビリティ対応 */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+
+  /* ハイコントラストモード */
+  @media (prefers-contrast: high) {
+    .header {
+      border-bottom: 2px solid #000;
+    }
+
+    .footer {
+      border-top: 2px solid #000;
     }
   }
 </style>

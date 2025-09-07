@@ -10,6 +10,10 @@
   import LoadingSpinner from '../../lib/components/LoadingSpinner.svelte';
   import Button from '../../lib/components/Button.svelte';
   import Select from '../../lib/components/Select.svelte';
+  import ResponsiveLayout from '../../lib/components/ResponsiveLayout.svelte';
+  import ResponsiveGrid from '../../lib/components/ResponsiveGrid.svelte';
+  import AnimatedTransition from '../../lib/components/AnimatedTransition.svelte';
+  import StaggeredList from '../../lib/components/StaggeredList.svelte';
 
   // データ状態
   let currentSport = 'volleyball';
@@ -365,171 +369,208 @@
   <title>管理者ダッシュボード - Tournament Management System</title>
 </svelte:head>
 
-<div class="admin-container">
-  <!-- ヘッダー -->
-  <header class="admin-header">
-    <div class="header-content">
-      <h1>管理者ダッシュボード</h1>
-      <div class="header-actions">
-        <Button 
-          variant="outline" 
-          size="small" 
-          on:click={handleRefresh}
-          disabled={isLoading}
-        >
-          更新
-        </Button>
-        <Button 
-          variant="secondary" 
-          size="small" 
-          on:click={handleLogout}
-        >
-          ログアウト
-        </Button>
-      </div>
-    </div>
-    <p class="header-description">試合結果の入力とトーナメント管理</p>
-  </header>
+<ResponsiveLayout let:screenSize>
+  <div class="admin-container">
+    <ResponsiveLayout container={true} padding={true}>
+      <!-- ヘッダー -->
+      <header class="admin-header">
+        <div class="header-content responsive-flex justify-between align-center">
+          <h1 class="responsive-text size-3xl">管理者ダッシュボード</h1>
+          <div class="header-actions responsive-flex">
+            <Button 
+              variant="outline" 
+              size="small" 
+              on:click={handleRefresh}
+              disabled={isLoading}
+            >
+              更新
+            </Button>
+            <Button 
+              variant="secondary" 
+              size="small" 
+              on:click={handleLogout}
+            >
+              ログアウト
+            </Button>
+          </div>
+        </div>
+        <p class="header-description responsive-text">試合結果の入力とトーナメント管理</p>
+      </header>
 
-  <!-- コントロールパネル -->
-  <section class="control-panel">
-    <div class="control-group">
-      <label for="sport-select">スポーツ選択</label>
-      <Select
-        id="sport-select"
-        bind:value={currentSport}
-        options={sportOptions}
-        on:change={handleSportChange}
-        disabled={isLoading}
-      />
-    </div>
+      <!-- コントロールパネル -->
+      <section class="control-panel">
+        <ResponsiveGrid 
+          cols={{ mobile: 1, tablet: 2, desktop: 2 }}
+          gap="1rem"
+          className="control-grid"
+        >
+          <div class="control-group">
+            <label for="sport-select" class="responsive-text size-sm">スポーツ選択</label>
+            <Select
+              id="sport-select"
+              bind:value={currentSport}
+              options={sportOptions}
+              on:change={handleSportChange}
+              disabled={isLoading}
+            />
+          </div>
 
-    {#if availableFormats.length > 0}
-      <div class="control-group">
-        <label for="format-select">
-          トーナメント形式
-          {#if isLoadingFormats}
+          {#if availableFormats.length > 0}
+            <div class="control-group">
+              <label for="format-select" class="responsive-text size-sm">
+                トーナメント形式
+                {#if isLoadingFormats}
+                  <LoadingSpinner size="small" />
+                {/if}
+              </label>
+              <Select
+                id="format-select"
+                bind:value={currentFormat}
+                options={availableFormats.map(format => ({ value: format, label: format }))}
+                on:change={handleFormatChange}
+                disabled={isLoadingFormats || isUpdatingFormat}
+              />
+              {#if isUpdatingFormat}
+                <span class="updating-indicator responsive-text size-xs">更新中...</span>
+              {/if}
+            </div>
+          {/if}
+        </ResponsiveGrid>
+      </section>
+
+      <!-- 未完了試合一覧 -->
+      <section class="matches-section">
+        <div class="section-header responsive-flex align-center">
+          <h2 class="responsive-text size-2xl">{getSportLabel(currentSport)}の未完了試合</h2>
+          {#if isLoading}
             <LoadingSpinner size="small" />
           {/if}
-        </label>
-        <Select
-          id="format-select"
-          bind:value={currentFormat}
-          options={availableFormats.map(format => ({ value: format, label: format }))}
-          on:change={handleFormatChange}
-          disabled={isLoadingFormats || isUpdatingFormat}
-        />
-        {#if isUpdatingFormat}
-          <span class="updating-indicator">更新中...</span>
-        {/if}
-      </div>
-    {/if}
-  </section>
+        </div>
 
-  <!-- 未完了試合一覧 -->
-  <section class="matches-section">
-    <div class="section-header">
-      <h2>{getSportLabel(currentSport)}の未完了試合</h2>
-      {#if isLoading}
-        <LoadingSpinner size="small" />
-      {/if}
-    </div>
-
-    {#if isLoading}
-      <div class="loading-container">
-        <LoadingSpinner />
-        <p>試合データを読み込み中...</p>
-      </div>
-    {:else if pendingMatches.length === 0}
-      <div class="empty-state">
-        <p>未完了の試合はありません</p>
-        <Button variant="outline" on:click={handleRefresh}>
-          データを更新
-        </Button>
-      </div>
-    {:else}
-      <div class="matches-grid">
-        {#each pendingMatches as match (match.id)}
-          <div class="match-card">
-            <div class="match-header">
-              <span class="round-label">{match.round}</span>
-              <span class="status-badge {getStatusClass(match.status)}">
-                {getStatusLabel(match.status)}
-              </span>
-            </div>
-            
-            <div class="match-teams">
-              <div class="team">
-                <span class="team-name">{match.team1}</span>
-                {#if match.score1 !== null}
-                  <span class="team-score">{match.score1}</span>
-                {/if}
-              </div>
-              
-              <div class="vs-divider">vs</div>
-              
-              <div class="team">
-                <span class="team-name">{match.team2}</span>
-                {#if match.score2 !== null}
-                  <span class="team-score">{match.score2}</span>
-                {/if}
-              </div>
-            </div>
-
-            {#if match.winner}
-              <div class="winner-info">
-                <span class="winner-label">勝者:</span>
-                <span class="winner-name">{match.winner}</span>
-              </div>
-            {/if}
-
-            {#if match.scheduled_at}
-              <div class="schedule-info">
-                <span class="schedule-label">予定:</span>
-                <span class="schedule-time">
-                  {new Date(match.scheduled_at).toLocaleString('ja-JP')}
+        {#if isLoading}
+          <div class="loading-container">
+            <LoadingSpinner />
+            <p class="responsive-text">試合データを読み込み中...</p>
+          </div>
+        {:else if pendingMatches.length === 0}
+          <div class="empty-state">
+            <p class="responsive-text size-lg">未完了の試合はありません</p>
+            <Button variant="outline" on:click={handleRefresh}>
+              データを更新
+            </Button>
+          </div>
+        {:else}
+          <StaggeredList 
+            items={pendingMatches.map(match => ({ ...match, id: match.id }))}
+            staggerDelay={100}
+            animationType="fadeInUp"
+            tag="div"
+            itemTag="div"
+            className="matches-grid"
+            itemClassName="match-grid-item"
+          >
+            <div 
+              slot="default"
+              let:item={match}
+              class="match-card hover-lift transition-all"
+            >
+              <div class="match-header responsive-flex justify-between align-center">
+                <span class="round-label responsive-text size-sm">{match.round}</span>
+                <span class="status-badge {getStatusClass(match.status)} responsive-text size-xs">
+                  {getStatusLabel(match.status)}
                 </span>
               </div>
-            {/if}
+              
+              <div class="match-teams">
+                <div class="team">
+                  <span class="team-name responsive-text size-sm">{match.team1}</span>
+                  {#if match.score1 !== null}
+                    <span class="team-score responsive-text size-xl">{match.score1}</span>
+                  {/if}
+                </div>
+                
+                <div class="vs-divider responsive-text size-sm">vs</div>
+                
+                <div class="team">
+                  <span class="team-name responsive-text size-sm">{match.team2}</span>
+                  {#if match.score2 !== null}
+                    <span class="team-score responsive-text size-xl">{match.score2}</span>
+                  {/if}
+                </div>
+              </div>
 
-            <div class="match-actions">
-              <Button 
-                variant="primary" 
-                size="small"
-                on:click={() => handleEditMatch(match)}
-                disabled={showMatchForm}
-              >
-                結果入力
-              </Button>
+              {#if match.winner}
+                <AnimatedTransition show={true} type="scale" duration={300}>
+                  <div class="winner-info">
+                    <span class="winner-label responsive-text size-sm">勝者:</span>
+                    <span class="winner-name responsive-text size-sm">{match.winner}</span>
+                  </div>
+                </AnimatedTransition>
+              {/if}
+
+              {#if match.scheduled_at}
+                <div class="schedule-info">
+                  <span class="schedule-label responsive-text size-xs">予定:</span>
+                  <span class="schedule-time responsive-text size-xs">
+                    {new Date(match.scheduled_at).toLocaleString('ja-JP')}
+                  </span>
+                </div>
+              {/if}
+
+              <div class="match-actions">
+                <Button 
+                  variant="primary" 
+                  size="small"
+                  on:click={() => handleEditMatch(match)}
+                  disabled={showMatchForm}
+                >
+                  結果入力
+                </Button>
+              </div>
             </div>
-          </div>
-        {/each}
-      </div>
-    {/if}
-  </section>
+          </StaggeredList>
+        {/if}
+      </section>
+    </ResponsiveLayout>
+  </div>
 
   <!-- 試合結果入力フォーム -->
   {#if showMatchForm && selectedMatch}
     <section class="form-section">
-      <div 
-        class="form-overlay" 
-        role="button"
-        tabindex="0"
-        on:click={handleMatchFormCancel}
-        on:keydown={(e) => e.key === 'Escape' && handleMatchFormCancel()}
-        aria-label="フォームを閉じる"
-      ></div>
-      <div class="form-container">
-        <AdminMatchForm 
-          match={selectedMatch}
-          on:success={handleMatchSubmitSuccess}
-          on:error={handleMatchSubmitError}
-          on:cancel={handleMatchFormCancel}
-        />
-      </div>
+      <AnimatedTransition 
+        show={true}
+        type="fade"
+        duration={200}
+        className="form-overlay-wrapper"
+      >
+        <div 
+          class="form-overlay" 
+          role="button"
+          tabindex="0"
+          on:click={handleMatchFormCancel}
+          on:keydown={(e) => e.key === 'Escape' && handleMatchFormCancel()}
+          aria-label="フォームを閉じる"
+        ></div>
+      </AnimatedTransition>
+      
+      <AnimatedTransition 
+        show={true}
+        type="scale"
+        duration={300}
+        className="form-container-wrapper"
+      >
+        <div class="form-container">
+          <AdminMatchForm 
+            match={selectedMatch}
+            on:success={handleMatchSubmitSuccess}
+            on:error={handleMatchSubmitError}
+            on:cancel={handleMatchFormCancel}
+          />
+        </div>
+      </AnimatedTransition>
     </section>
   {/if}
-</div>
+</ResponsiveLayout>
 
 <style>
   .admin-container {
@@ -646,6 +687,10 @@
     gap: 1.5rem;
   }
 
+  .match-grid-item {
+    width: 100%;
+  }
+
   /* 試合カード */
   .match-card {
     background: white;
@@ -658,7 +703,6 @@
 
   .match-card:hover {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
   }
 
   .match-header {
@@ -793,6 +837,14 @@
     justify-content: center;
   }
 
+  :global(.form-overlay-wrapper) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
   .form-overlay {
     position: absolute;
     top: 0;
@@ -803,12 +855,15 @@
     cursor: pointer;
   }
 
-  .form-container {
+  :global(.form-container-wrapper) {
     position: relative;
     z-index: 1001;
     max-width: 500px;
     width: 90%;
     max-height: 90vh;
+  }
+
+  .form-container {
     overflow-y: auto;
   }
 
