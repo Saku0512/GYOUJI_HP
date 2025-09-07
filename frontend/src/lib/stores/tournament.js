@@ -2,6 +2,8 @@
 import { writable, get } from 'svelte/store';
 import { tournamentAPI } from '../api/tournament.js';
 import { matchAPI } from '../api/matches.js';
+import { defaultPollingSystem } from '../utils/polling.js';
+import { defaultCacheSystem, cachedFetch } from '../utils/cache.js';
 
 // トーナメント状態の初期値
 const initialTournamentState = {
@@ -72,49 +74,7 @@ function validateSport(sport) {
   return true;
 }
 
-/**
- * キャッシュの有効性をチェック
- */
-function isCacheValid(sport) {
-  const state = get({ subscribe });
-  const cached = state.cache[sport];
-  
-  if (!cached || !cached.timestamp) {
-    return false;
-  }
-  
-  return Date.now() - cached.timestamp < CACHE_DURATION;
-}
 
-/**
- * キャッシュからデータを取得
- */
-function getCachedData(sport) {
-  const state = get({ subscribe });
-  const cached = state.cache[sport];
-  
-  if (cached && isCacheValid(sport)) {
-    return cached.data;
-  }
-  
-  return null;
-}
-
-/**
- * データをキャッシュに保存
- */
-function setCacheData(sport, data) {
-  update(state => ({
-    ...state,
-    cache: {
-      ...state.cache,
-      [sport]: {
-        data,
-        timestamp: Date.now()
-      }
-    }
-  }));
-}
 
 /**
  * トーナメントデータを取得
@@ -127,32 +87,23 @@ async function fetchTournaments(sport = null, useCache = true) {
     if (sport) {
       validateSport(sport);
       
-      // キャッシュチェック
-      if (useCache) {
-        const cachedData = getCachedData(sport);
-        if (cachedData) {
-          update(state => ({
-            ...state,
-            tournaments: {
-              ...state.tournaments,
-              [sport]: cachedData
-            }
-          }));
-          return {
-            success: true,
-            data: cachedData,
-            message: `${sport}のトーナメントデータを取得しました（キャッシュ）`
-          };
-        }
-      }
-      
       setLoading(true);
       
-      // APIからデータ取得
-      const response = await tournamentAPI.getTournament(sport);
+      // キャッシュ付きフェッチを使用
+      const cacheKey = `tournament_${sport}`;
+      const fetchFn = () => tournamentAPI.getTournament(sport);
+      
+      const response = useCache 
+        ? await cachedFetch(cacheKey, fetchFn, {
+            cache: defaultCacheSystem,
+            ttl: CACHE_DURATION,
+            tags: ['tournament', sport],
+            staleWhileRevalidate: true
+          })
+        : await fetchFn();
       
       if (response.success) {
-        // データを状態とキャッシュに保存
+        // データを状態に保存
         update(state => ({
           ...state,
           tournaments: {
@@ -163,8 +114,6 @@ async function fetchTournaments(sport = null, useCache = true) {
           lastUpdated: Date.now()
         }));
         
-        setCacheData(sport, response.data);
-        
         return response;
       } else {
         setError(response.message || 'トーナメントデータの取得に失敗しました');
@@ -174,7 +123,17 @@ async function fetchTournaments(sport = null, useCache = true) {
       // 全スポーツのデータを取得
       setLoading(true);
       
-      const response = await tournamentAPI.getTournaments();
+      const cacheKey = 'tournaments_all';
+      const fetchFn = () => tournamentAPI.getTournaments();
+      
+      const response = useCache
+        ? await cachedFetch(cacheKey, fetchFn, {
+            cache: defaultCacheSystem,
+            ttl: CACHE_DURATION,
+            tags: ['tournament', 'all'],
+            staleWhileRevalidate: true
+          })
+        : await fetchFn();
       
       if (response.success) {
         update(state => ({
@@ -183,13 +142,6 @@ async function fetchTournaments(sport = null, useCache = true) {
           loading: false,
           lastUpdated: Date.now()
         }));
-        
-        // 各スポーツのデータをキャッシュに保存
-        if (response.data && typeof response.data === 'object') {
-          Object.keys(response.data).forEach(sportKey => {
-            setCacheData(sportKey, response.data[sportKey]);
-          });
-        }
         
         return response;
       } else {
@@ -229,11 +181,14 @@ async function updateMatch(matchId, result) {
     const response = await matchAPI.updateMatch(matchId, result);
     
     if (response.success) {
-      // 成功時は関連するトーナメントデータを再取得
+      // 成功時は関連するキャッシュを無効化
       const state = get({ subscribe });
       const currentSport = state.currentSport;
       
-      // キャッシュをクリアして最新データを取得
+      // 関連するキャッシュを無効化
+      await defaultCacheSystem.invalidateByTag(['tournament', currentSport]);
+      
+      // 最新データを取得
       await fetchTournaments(currentSport, false);
       
       return {
@@ -326,12 +281,8 @@ function startPolling() {
     return;
   }
   
-  const intervalId = setInterval(async () => {
-    // ページが非表示の場合はポーリングをスキップ
-    if (typeof document !== 'undefined' && document.hidden) {
-      return;
-    }
-    
+  // 新しいポーリングシステムを使用
+  defaultPollingSystem.registerCallback('tournament-data', async () => {
     const currentState = get({ subscribe });
     
     // ローディング中の場合はスキップ
@@ -339,16 +290,21 @@ function startPolling() {
       return;
     }
     
-    try {
-      await refreshData();
-    } catch (error) {
-      console.error('Polling error:', error);
-    }
-  }, POLLING_INTERVAL);
+    await refreshData();
+  });
+  
+  // エラーハンドリングコールバックを登録
+  defaultPollingSystem.registerErrorCallback('tournament-data', async (error) => {
+    console.error('Tournament polling error:', error);
+    setError('データの更新中にエラーが発生しました');
+  });
+  
+  // ポーリングを開始
+  defaultPollingSystem.start();
   
   update(state => ({
     ...state,
-    pollingInterval: intervalId
+    pollingInterval: 'active' // ポーリングシステムを使用していることを示す
   }));
 }
 
@@ -356,16 +312,20 @@ function startPolling() {
  * ポーリングを停止
  */
 function stopPolling() {
-  update(state => {
-    if (state.pollingInterval) {
-      clearInterval(state.pollingInterval);
-    }
-    
-    return {
-      ...state,
-      pollingInterval: null
-    };
-  });
+  // ポーリングシステムからコールバックを削除
+  defaultPollingSystem.unregisterCallback('tournament-data');
+  defaultPollingSystem.unregisterErrorCallback('tournament-data');
+  
+  // 他にコールバックが登録されていない場合はポーリングを停止
+  const stats = defaultPollingSystem.getStats();
+  if (stats.callbackCount === 0) {
+    defaultPollingSystem.stop();
+  }
+  
+  update(state => ({
+    ...state,
+    pollingInterval: null
+  }));
 }
 
 /**
@@ -442,6 +402,40 @@ function getSupportedSports() {
   return [...SUPPORTED_SPORTS];
 }
 
+/**
+ * キャッシュをクリア
+ */
+async function clearCache(sport = null) {
+  try {
+    if (sport) {
+      // 特定のスポーツのキャッシュをクリア
+      await defaultCacheSystem.invalidateByTag(['tournament', sport]);
+    } else {
+      // 全てのトーナメントキャッシュをクリア
+      await defaultCacheSystem.invalidateByTag(['tournament']);
+    }
+    
+    return {
+      success: true,
+      message: sport ? `${sport}のキャッシュをクリアしました` : 'トーナメントキャッシュをクリアしました'
+    };
+  } catch (error) {
+    console.error('Clear cache error:', error);
+    return {
+      success: false,
+      error: 'CLEAR_CACHE_ERROR',
+      message: 'キャッシュのクリアに失敗しました'
+    };
+  }
+}
+
+/**
+ * キャッシュの統計情報を取得
+ */
+function getCacheStats() {
+  return defaultCacheSystem.getStats();
+}
+
 // エクスポートするストアオブジェクト
 export const tournamentStore = {
   subscribe,
@@ -457,6 +451,10 @@ export const tournamentStore = {
   // ポーリング制御
   startPolling,
   stopPolling,
+  
+  // キャッシュ管理
+  clearCache,
+  getCacheStats,
   
   // ユーティリティ
   getCurrentTournament,
