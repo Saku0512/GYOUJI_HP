@@ -105,7 +105,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD /usr/local/bin/healthcheck.sh
 
 # セキュリティ: 非rootユーザーで実行
-USER nginx-user
+# USER nginx-user
 
 # Nginxをフォアグラウンドで起動
 CMD ["nginx", "-g", "daemon off;"]

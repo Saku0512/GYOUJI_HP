@@ -711,7 +711,7 @@ func (h *TournamentHandler) GetTournamentBracket(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param sport path string true "スポーツ名" Enums(table_tennis)
+// @Param id path int true "トーナメントID"
 // @Param request body SwitchFormatRequest true "形式切り替え情報"
 // @Success 200 {object} map[string]string "切り替え成功"
 // @Failure 400 {object} ErrorResponse "リクエストエラー"
@@ -719,16 +719,17 @@ func (h *TournamentHandler) GetTournamentBracket(c *gin.Context) {
 // @Failure 404 {object} ErrorResponse "未発見エラー"
 // @Failure 409 {object} ErrorResponse "競合エラー"
 // @Failure 500 {object} ErrorResponse "サーバーエラー"
-// @Router /api/tournaments/{sport}/format [put]
+// @Router /api/tournaments/{id}/format [put]
 func (h *TournamentHandler) SwitchTournamentFormat(c *gin.Context) {
-	sport := c.Param("sport")
+	idStr := c.Param("id")
 	var req SwitchFormatRequest
 
-	// 入力値の検証
-	if strings.TrimSpace(sport) == "" {
+	// IDの変換
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "Bad Request",
-			Message: "スポーツパラメータは必須です",
+			Message: "無効なトーナメントIDです",
 			Code:    http.StatusBadRequest,
 		})
 		return
@@ -754,34 +755,22 @@ func (h *TournamentHandler) SwitchTournamentFormat(c *gin.Context) {
 		return
 	}
 
-	// スポーツ別トーナメント取得
-	tournaments, err := h.tournamentService.GetTournamentBySport(context.Background(), sport, 1, 0)
+	// トーナメント取得
+	tournament, err := h.tournamentService.GetTournament(context.Background(), uint(id))
 	if err != nil {
+		if strings.Contains(err.Error(), "見つかりません") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: err.Error(),
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, ErrorResponse{
 			Error:   "Internal Server Error",
 			Message: "トーナメントの取得に失敗しました",
 			Code:    http.StatusInternalServerError,
-		})
-		return
-	}
-	
-	if len(tournaments) == 0 {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error:   "Not Found",
-			Message: "指定されたスポーツのトーナメントが見つかりません",
-			Code:    http.StatusNotFound,
-		})
-		return
-	}
-	
-	tournament := tournaments[0]
-	
-	// 卓球以外はサポートしない
-	if sport != "table_tennis" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "形式切り替えは卓球のみサポートしています",
-			Code:    http.StatusBadRequest,
 		})
 		return
 	}

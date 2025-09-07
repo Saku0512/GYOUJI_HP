@@ -167,7 +167,7 @@ func (r *Router) setupTournamentRoutes(protected *gin.RouterGroup, authMiddlewar
 		{
 			adminTournaments.POST("", r.handlers.TournamentHandler.CreateTournament)
 			adminTournaments.PUT("/:id", r.handlers.TournamentHandler.UpdateTournament)
-			adminTournaments.PUT("/:sport/format", r.handlers.TournamentHandler.SwitchTournamentFormat)
+			adminTournaments.PUT("/:id/format", r.handlers.TournamentHandler.SwitchTournamentFormat)
 		}
 	}
 }

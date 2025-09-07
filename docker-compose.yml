@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   traefik:
     image: "traefik:v2.10"
@@ -72,22 +70,32 @@ services:
       SERVER_PORT: 8080
       SERVER_HOST: 0.0.0.0
     ports:
-      - "8081:8080"
+      - "3000:8080"
     depends_on:
       mysql:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
       
-      # API用HTTPルーター
-      - "traefik.http.routers.backend-http.rule=Host(`nitsche-gyouji.com`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend-http.entrypoints=web"
-      - "traefik.http.routers.backend-http.middlewares=redirect-to-https"
+      # --- 変更点: backendのTraefik設定をドメインとlocalhostで分離 ---
+      # [HTTP] 本番ドメイン用ルーター (HTTPSへリダイレクト)
+      - "traefik.http.routers.backend-http-prod.rule=Host(`nitsche-gyouji.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-http-prod.entrypoints=web"
+      - "traefik.http.routers.backend-http-prod.middlewares=redirect-to-https"
       
-      # API用HTTPSルーター
-      - "traefik.http.routers.backend-https.rule=Host(`nitsche-gyouji.com`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend-https.entrypoints=websecure"
-      - "traefik.http.routers.backend-https.tls.certresolver=myresolver"
+      # [HTTP] localhost用ルーター
+      - "traefik.http.routers.backend-http-local.rule=Host(`localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-http-local.entrypoints=web"
+
+      # [HTTPS] 本番ドメイン用ルーター (Let's Encrypt利用)
+      - "traefik.http.routers.backend-https-prod.rule=Host(`nitsche-gyouji.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-https-prod.entrypoints=websecure"
+      - "traefik.http.routers.backend-https-prod.tls.certresolver=myresolver"
+
+      # [HTTPS] localhost用ルーター (自己署名証明書)
+      - "traefik.http.routers.backend-https-local.rule=Host(`localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-https-local.entrypoints=websecure"
+      - "traefik.http.routers.backend-https-local.tls=true"
       
       # サービス設定
       - "traefik.http.services.backend.loadbalancer.server.port=8080"
@@ -111,12 +119,13 @@ services:
       backend:
         condition: service_healthy
     environment:
-      # 本番環境用環境変数
       NODE_ENV: production
       VITE_API_BASE_URL: /api
       VITE_APP_TITLE: Tournament Management System
       VITE_ENABLE_POLLING: "true"
       VITE_POLLING_INTERVAL: "30000"
+    ports:
+      - "3300:80"
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost/health || exit 1"]
       interval: 30s
@@ -126,11 +135,15 @@ services:
     # セキュリティ設定
     security_opt:
       - no-new-privileges:true
-    read_only: true
+    read_only: false
+    
+    # <<< 変更点: 'mounts'から互換性の高い'tmpfs'構文に戻しました >>>
+    # 権限問題はDockerfile側で解決するため、ここでは所有者指定は不要です。
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
       - /var/cache/nginx:noexec,nosuid,size=50m
       - /var/run:noexec,nosuid,size=10m
+
     # リソース制限
     deploy:
       resources:
@@ -143,29 +156,39 @@ services:
     labels:
       - "traefik.enable=true"
       
-      # HTTP用のルーター（HTTPSリダイレクト）
-      - "traefik.http.routers.frontend-http.rule=Host(`nitsche-gyouji.com`)"
-      - "traefik.http.routers.frontend-http.entrypoints=web"
-      - "traefik.http.routers.frontend-http.middlewares=redirect-to-https,security-headers"
+      # HTTP用のルーター（本番ドメインのみHTTPSリダイレクト）
+      - "traefik.http.routers.frontend-http-prod.rule=Host(`nitsche-gyouji.com`)"
+      - "traefik.http.routers.frontend-http-prod.entrypoints=web"
+      - "traefik.http.routers.frontend-http-prod.middlewares=redirect-to-https,security-headers"
       
-      # HTTPS用のルーター
-      - "traefik.http.routers.frontend-https.rule=Host(`nitsche-gyouji.com`)"
-      - "traefik.http.routers.frontend-https.entrypoints=websecure"
-      - "traefik.http.routers.frontend-https.tls.certresolver=myresolver"
-      - "traefik.http.routers.frontend-https.middlewares=security-headers,compression"
+      # HTTP用のルーター（localhost用、リダイレクトなし）
+      - "traefik.http.routers.frontend-http-local.rule=Host(`localhost`)"
+      - "traefik.http.routers.frontend-http-local.entrypoints=web"
+      - "traefik.http.routers.frontend-http-local.middlewares=security-headers"
       
-      # ミドルウェア設定
+      # --- 変更点: frontendのHTTPSルーターをドメインとlocalhostで分離 ---
+      # [HTTPS] 本番ドメイン用ルーター (Let's Encrypt利用)
+      - "traefik.http.routers.frontend-https-prod.rule=Host(`nitsche-gyouji.com`)"
+      - "traefik.http.routers.frontend-https-prod.entrypoints=websecure"
+      - "traefik.http.routers.frontend-https-prod.tls.certresolver=myresolver"
+      - "traefik.http.routers.frontend-https-prod.middlewares=security-headers,compression"
+
+      # [HTTPS] localhost用ルーター (自己署名証明書)
+      - "traefik.http.routers.frontend-https-local.rule=Host(`localhost`)"
+      - "traefik.http.routers.frontend-https-local.entrypoints=websecure"
+      - "traefik.http.routers.frontend-https-local.tls=true"
+      - "traefik.http.routers.frontend-https-local.middlewares=security-headers,compression"
+      
+      # ミドルウェア設定 (重複を削除)
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
       
-      # セキュリティヘッダー
       - "traefik.http.middlewares.security-headers.headers.frameDeny=true"
       - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
       - "traefik.http.middlewares.security-headers.headers.browserXssFilter=true"
       - "traefik.http.middlewares.security-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
       - "traefik.http.middlewares.security-headers.headers.customRequestHeaders.X-Forwarded-Proto=https"
       
-      # 圧縮設定
       - "traefik.http.middlewares.compression.compress=true"
       
       # サービス設定

@@ -1,20 +1,15 @@
-# 本番環境用のdocker-compose設定
-version: '3.8'
+# docker-compose.prod.yml (修正案)
 
 services:
   # 本番環境用MySQL設定
   mysql:
     restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
+    # environmentはdocker-compose.ymlから継承されるので不要
     volumes:
+      # mysql_dataをmysql_prod_dataで上書き
       - mysql_prod_data:/var/lib/mysql
-      - ./backend/migrations:/docker-entrypoint-initdb.d
-    # セキュリティ: 本番環境ではポートを公開しない
-    ports: []
+      # マイグレーション設定は継承されるので不要
+    ports: [] # ポートを閉じる上書き
     logging:
       driver: "json-file"
       options:
@@ -25,19 +20,9 @@ services:
   backend:
     restart: always
     environment:
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION_HOURS: ${JWT_EXPIRATION_HOURS}
-      JWT_ISSUER: ${JWT_ISSUER}
-      SERVER_PORT: 8080
-      SERVER_HOST: 0.0.0.0
+      # GIN_MODEだけを追加 (他の変数は.envファイルで管理)
       GIN_MODE: release
-    # セキュリティ: 本番環境では直接ポートアクセスを無効化
-    ports: []
+    ports: [] # ポートを閉じる上書き
     logging:
       driver: "json-file"
       options:
@@ -46,38 +31,24 @@ services:
 
   # 本番環境用フロントエンド設定
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: production
-      args:
-        NODE_ENV: production
+    # buildセクションは継承されるので不要
     restart: always
     environment:
-      NODE_ENV: production
-      VITE_API_BASE_URL: /api
-      VITE_APP_TITLE: Tournament Management System
-      VITE_ENABLE_POLLING: "true"
-      VITE_POLLING_INTERVAL: "30000"
+      # 本番で追加したい環境変数だけを記述
       VITE_ENABLE_CSP: "true"
       VITE_ENABLE_HTTPS_REDIRECT: "true"
       VITE_LOG_LEVEL: warn
       VITE_ENABLE_ANALYTICS: "false"
       VITE_ENABLE_DEBUG: "false"
-    # セキュリティ: 本番環境では直接ポートアクセスを無効化
-    ports: []
-    # 本番環境用セキュリティ強化
-    security_opt:
-      - no-new-privileges:true
-      - apparmor:docker-default
-    read_only: true
+    ports: [] # ポートを閉じる上書き
     tmpfs:
+      # セキュリティを考慮し、noexecに修正
       - /tmp:noexec,nosuid,size=50m
       - /var/cache/nginx:noexec,nosuid,size=25m
       - /var/run:noexec,nosuid,size=5m
-    # 本番環境用リソース制限
     deploy:
       resources:
+        # リソース制限を上書き
         limits:
           cpus: '0.3'
           memory: 128M
@@ -97,5 +68,6 @@ services:
         compress: "true"
 
 volumes:
+  # 本番用のボリュームを新たに追加
   mysql_prod_data:
     driver: local
