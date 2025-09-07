@@ -6,6 +6,7 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.filename=/etc/traefik/traefik-config.yml"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
@@ -19,6 +20,8 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./letsencrypt:/letsencrypt"
+      - "./traefik-config.yml:/etc/traefik/traefik-config.yml:ro"
+
     networks:
       - web
 
@@ -78,10 +81,12 @@ services:
       - "traefik.enable=true"
       
       # --- 変更点: backendのTraefik設定をドメインとlocalhostで分離 ---
-      # [HTTP] 本番ドメイン用ルーター (HTTPSへリダイレクト)
+      # [HTTP] 本番ドメイン用ルーター (HTTPSへリダイレクト) - ミドルウェアを直接定義
       - "traefik.http.routers.backend-http-prod.rule=Host(`nitsche-gyouji.com`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend-http-prod.entrypoints=web"
-      - "traefik.http.routers.backend-http-prod.middlewares=redirect-to-https"
+      - "traefik.http.routers.backend-http-prod.middlewares=backend-redirect-to-https"
+      - "traefik.http.middlewares.backend-redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.backend-redirect-to-https.redirectscheme.permanent=true"
       
       # [HTTP] localhost用ルーター
       - "traefik.http.routers.backend-http-local.rule=Host(`localhost`) && PathPrefix(`/api`)"
@@ -159,7 +164,9 @@ services:
       # HTTP用のルーター（本番ドメインのみHTTPSリダイレクト）
       - "traefik.http.routers.frontend-http-prod.rule=Host(`nitsche-gyouji.com`)"
       - "traefik.http.routers.frontend-http-prod.entrypoints=web"
-      - "traefik.http.routers.frontend-http-prod.middlewares=redirect-to-https,security-headers"
+      - "traefik.http.routers.frontend-http-prod.middlewares=frontend-redirect-to-https,security-headers"
+      - "traefik.http.middlewares.frontend-redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.frontend-redirect-to-https.redirectscheme.permanent=true"
       
       # HTTP用のルーター（localhost用、リダイレクトなし）
       - "traefik.http.routers.frontend-http-local.rule=Host(`localhost`)"
@@ -179,10 +186,7 @@ services:
       - "traefik.http.routers.frontend-https-local.tls=true"
       - "traefik.http.routers.frontend-https-local.middlewares=security-headers,compression"
       
-      # ミドルウェア設定 (重複を削除)
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
-      
+      # ミドルウェア設定
       - "traefik.http.middlewares.security-headers.headers.frameDeny=true"
       - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
       - "traefik.http.middlewares.security-headers.headers.browserXssFilter=true"
