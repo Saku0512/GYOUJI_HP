@@ -1748,6 +1748,24 @@ class Payload {
     this.head.uid = this.uid;
   }
 }
+function copy_payload({ out, css, head: head2, uid }) {
+  const payload = new Payload();
+  payload.out = [...out];
+  payload.css = new Set(css);
+  payload.uid = uid;
+  payload.head = new HeadPayload();
+  payload.head.out = [...head2.out];
+  payload.head.css = new Set(head2.css);
+  payload.head.title = head2.title;
+  payload.head.uid = head2.uid;
+  return payload;
+}
+function assign_payload(p1, p2) {
+  p1.out = [...p2.out];
+  p1.css = p2.css;
+  p1.head = p2.head;
+  p1.uid = p2.uid;
+}
 function props_id_generator(prefix) {
   let uid = 1;
   return () => `${prefix}s${uid++}`;
@@ -1858,6 +1876,9 @@ function ensure_array_like(array_like_or_iterator) {
   }
   return [];
 }
+function maybe_selected(payload, value) {
+  return value === payload.select_value ? " selected" : "";
+}
 export {
   setContext as A,
   pop as B,
@@ -1875,13 +1896,16 @@ export {
   attr as N,
   slot as O,
   unsubscribe_stores as P,
-  current_component as Q,
-  clsx as R,
-  head as S,
-  attr_style as T,
-  noop as U,
-  subscribe_to_store as V,
-  safe_not_equal as W,
+  clsx as Q,
+  head as R,
+  attr_style as S,
+  maybe_selected as T,
+  copy_payload as U,
+  assign_payload as V,
+  current_component as W,
+  noop as X,
+  subscribe_to_store as Y,
+  safe_not_equal as Z,
   set_active_effect as a,
   active_effect as b,
   active_reaction as c,

@@ -1,6 +1,8 @@
 {
 	"/": [],
-	"/admin": [],
+	"/admin": [
+		"src/routes/admin/+page.js"
+	],
 	"/login": [
 		"src/routes/login/+page.js"
 	]

@@ -1,5 +1,6 @@
 import { w as writable } from "./index.js";
-import { E as fallback, F as attr_class, T as attr_style, I as bind_props, J as stringify } from "./index2.js";
+import { E as fallback, F as attr_class, S as attr_style, I as bind_props, J as stringify } from "./index2.js";
+/* empty css                                             */
 const initialUIState = {
   notifications: [],
   loading: false,

@@ -89,6 +89,15 @@
     "file": "chunks/storage.js",
     "name": "storage"
   },
+  "_tournament.js": {
+    "file": "chunks/tournament.js",
+    "name": "tournament",
+    "imports": [
+      "_index2.js",
+      "_index.js",
+      "_client.js"
+    ]
+  },
   "_utils.js": {
     "file": "chunks/utils.js",
     "name": "utils"
@@ -156,12 +165,20 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
-      "_index.js",
-      "_client.js",
+      "_tournament.js",
       "_LoadingSpinner.js"
     ],
     "css": [
       "_app/immutable/assets/_page.BzoyCMDr.css"
+    ]
+  },
+  "src/routes/admin/+page.js": {
+    "file": "entries/pages/admin/_page.js",
+    "name": "entries/pages/admin/_page",
+    "src": "src/routes/admin/+page.js",
+    "isEntry": true,
+    "imports": [
+      "_storage.js"
     ]
   },
   "src/routes/admin/+page.svelte": {
@@ -170,10 +187,14 @@
     "src": "src/routes/admin/+page.svelte",
     "isEntry": true,
     "imports": [
-      "_index2.js"
+      "_index2.js",
+      "_tournament.js",
+      "_auth.js",
+      "_client.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.hoyyCCFb.css"
+      "_app/immutable/assets/_page.BRqrkP92.css",
+      "_app/immutable/assets/LoadingSpinner.BxzunYK5.css"
     ]
   },
   "src/routes/login/+page.js": {
@@ -198,7 +219,7 @@
       "_auth.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.-o2-IrCg.css"
+      "_app/immutable/assets/_page.B6BljH5-.css"
     ]
   }
 }
