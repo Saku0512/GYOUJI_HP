@@ -1,10 +1,18 @@
 // HTTPクライアント設定
+import { handleApiError, handleNetworkError, retry, AppError, ERROR_TYPES, ERROR_LEVELS } from '$lib/utils/error-handler.js';
+
 class APIClient {
   constructor(baseURL = import.meta.env.VITE_API_BASE_URL || '/api') {
     this.baseURL = baseURL;
     this.token = null;
     this.requestInterceptors = [];
     this.responseInterceptors = [];
+    this.defaultTimeout = 30000; // 30秒
+    this.retryConfig = {
+      maxAttempts: 3,
+      retryableErrors: [ERROR_TYPES.NETWORK, ERROR_TYPES.TIMEOUT],
+      retryDelay: 1000
+    };
   }
 
   // トークン設定
@@ -74,19 +82,37 @@ class APIClient {
   // 基本リクエスト処理
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+    const requestId = `${options.method || 'GET'}-${endpoint}-${Date.now()}`;
     
     // デフォルト設定
     const config = {
       method: 'GET',
       headers: this.getHeaders(options.headers),
+      signal: this.createAbortSignal(options.timeout || this.defaultTimeout),
       ...options
     };
 
     // リクエストインターセプター適用
     const processedConfig = await this.applyRequestInterceptors(config);
 
+    // 再試行可能なリクエストの場合は retry を使用
+    const shouldRetry = this.shouldRetryRequest(options);
+    
+    if (shouldRetry) {
+      return retry(
+        () => this.executeRequest(url, processedConfig),
+        requestId,
+        this.retryConfig.maxAttempts
+      );
+    } else {
+      return this.executeRequest(url, processedConfig);
+    }
+  }
+
+  // リクエスト実行
+  async executeRequest(url, config) {
     try {
-      const response = await fetch(url, processedConfig);
+      const response = await fetch(url, config);
       
       // レスポンスインターセプター適用
       const processedResponse = await this.applyResponseInterceptors(response);
@@ -95,6 +121,40 @@ class APIClient {
     } catch (error) {
       return this.handleError(error);
     }
+  }
+
+  // AbortSignal の作成（タイムアウト対応）
+  createAbortSignal(timeout) {
+    if (typeof AbortController === 'undefined') {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    
+    if (timeout > 0) {
+      setTimeout(() => {
+        controller.abort();
+      }, timeout);
+    }
+    
+    return controller.signal;
+  }
+
+  // 再試行判定
+  shouldRetryRequest(options) {
+    // 明示的に再試行を無効にしている場合
+    if (options.retry === false) {
+      return false;
+    }
+
+    // GET リクエストは再試行可能
+    const method = (options.method || 'GET').toUpperCase();
+    if (method === 'GET' || method === 'HEAD') {
+      return true;
+    }
+
+    // その他のメソッドは明示的に再試行を有効にした場合のみ
+    return options.retry === true;
   }
 
   // GET リクエスト
@@ -161,8 +221,8 @@ class APIClient {
           statusText: response.statusText
         };
       } else {
-        // HTTPエラーステータスの場合
-        return {
+        // HTTPエラーステータスの場合 - 新しいエラーハンドラーを使用
+        const errorResponse = {
           success: false,
           error: data.error || 'HTTP_ERROR',
           message: data.message || `HTTP ${response.status}: ${response.statusText}`,
@@ -170,10 +230,15 @@ class APIClient {
           statusText: response.statusText,
           details: data.details || null
         };
+
+        // エラーハンドラーに処理を委譲
+        handleApiError(errorResponse);
+        
+        return errorResponse;
       }
     } catch (parseError) {
       // JSONパースエラーなど
-      return {
+      const errorResponse = {
         success: false,
         error: 'PARSE_ERROR',
         message: 'レスポンスの解析に失敗しました',
@@ -181,6 +246,18 @@ class APIClient {
         statusText: response.statusText,
         details: parseError.message
       };
+
+      // パースエラーとして処理
+      const appError = new AppError(
+        errorResponse.message,
+        ERROR_TYPES.PARSE,
+        ERROR_LEVELS.MEDIUM,
+        errorResponse.details
+      );
+      
+      handleApiError(errorResponse);
+      
+      return errorResponse;
     }
   }
 
@@ -188,33 +265,60 @@ class APIClient {
   handleError(error) {
     console.error('API Client Error:', error);
     
+    let errorResponse;
+    
     // ネットワークエラーやその他のfetchエラー
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      return {
+      errorResponse = {
         success: false,
         error: 'NETWORK_ERROR',
         message: 'ネットワークエラーが発生しました。接続を確認してください。',
         details: error.message
       };
+      
+      // ネットワークエラーハンドラーを使用
+      handleNetworkError(error);
     }
-    
     // タイムアウトエラー
-    if (error.name === 'AbortError') {
-      return {
+    else if (error.name === 'AbortError') {
+      errorResponse = {
         success: false,
         error: 'TIMEOUT_ERROR',
         message: 'リクエストがタイムアウトしました。',
         details: error.message
       };
+      
+      // タイムアウトエラーとして処理
+      const timeoutError = new AppError(
+        errorResponse.message,
+        ERROR_TYPES.TIMEOUT,
+        ERROR_LEVELS.MEDIUM,
+        { originalError: error }
+      );
+      
+      handleApiError(errorResponse);
+    }
+    // その他のエラー
+    else {
+      errorResponse = {
+        success: false,
+        error: 'UNKNOWN_ERROR',
+        message: '予期しないエラーが発生しました。',
+        details: error.message
+      };
+      
+      // 不明なエラーとして処理
+      const unknownError = new AppError(
+        errorResponse.message,
+        ERROR_TYPES.UNKNOWN,
+        ERROR_LEVELS.HIGH,
+        { originalError: error }
+      );
+      
+      handleApiError(errorResponse);
     }
     
-    // その他のエラー
-    return {
-      success: false,
-      error: 'UNKNOWN_ERROR',
-      message: '予期しないエラーが発生しました。',
-      details: error.message
-    };
+    return errorResponse;
   }
 
   // ヘルスチェック

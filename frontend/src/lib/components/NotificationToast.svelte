@@ -1,43 +1,181 @@
 <script>
   // NotificationToast コンポーネント - 通知表示
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   
   export let message = '';
   export let type = 'info'; // 'success', 'error', 'warning', 'info'
   export let duration = 5000; // 自動消去時間（ミリ秒）
   export let dismissible = true; // 手動で閉じることができるか
+  export let isPaused = false; // 一時停止状態
+  export let showProgress = true; // プログレスバーを表示するか
+  export let actions = []; // アクションボタンの配列 [{ label, onClick, variant }]
   
   const dispatch = createEventDispatcher();
   
   let visible = true;
   let timeoutId;
+  let startTime;
+  let remainingTime = duration;
+  let progressElement;
+  let toastElement;
   
-  // 自動消去タイマーを設定
-  if (duration > 0) {
+  // プログレスバーの状態
+  let progressWidth = 100;
+  let progressAnimationId;
+  
+  onMount(() => {
+    if (duration > 0) {
+      startTime = Date.now();
+      startAutoRemoval();
+    }
+  });
+  
+  onDestroy(() => {
+    clearAutoRemoval();
+  });
+  
+  // 一時停止状態の変更を監視
+  $: {
+    if (duration > 0) {
+      if (isPaused) {
+        pauseAutoRemoval();
+      } else {
+        resumeAutoRemoval();
+      }
+    }
+  }
+  
+  // 自動消去の開始
+  function startAutoRemoval() {
+    if (duration <= 0) return;
+    
+    clearAutoRemoval();
+    startTime = Date.now();
+    remainingTime = duration;
+    
     timeoutId = setTimeout(() => {
       close();
     }, duration);
+    
+    if (showProgress) {
+      startProgressAnimation();
+    }
   }
   
-  function close() {
-    visible = false;
+  // 自動消去の一時停止
+  function pauseAutoRemoval() {
     if (timeoutId) {
       clearTimeout(timeoutId);
+      timeoutId = null;
+      
+      // 残り時間を計算
+      const elapsed = Date.now() - startTime;
+      remainingTime = Math.max(0, duration - elapsed);
     }
+    
+    if (progressAnimationId) {
+      cancelAnimationFrame(progressAnimationId);
+      progressAnimationId = null;
+    }
+  }
+  
+  // 自動消去の再開
+  function resumeAutoRemoval() {
+    if (remainingTime > 0 && !timeoutId) {
+      startTime = Date.now();
+      
+      timeoutId = setTimeout(() => {
+        close();
+      }, remainingTime);
+      
+      if (showProgress) {
+        startProgressAnimation();
+      }
+    }
+  }
+  
+  // 自動消去のクリア
+  function clearAutoRemoval() {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    
+    if (progressAnimationId) {
+      cancelAnimationFrame(progressAnimationId);
+      progressAnimationId = null;
+    }
+  }
+  
+  // プログレスアニメーションの開始
+  function startProgressAnimation() {
+    if (!showProgress || duration <= 0) return;
+    
+    const animate = () => {
+      if (!visible || isPaused) return;
+      
+      const elapsed = Date.now() - startTime;
+      const progress = Math.max(0, 1 - elapsed / remainingTime);
+      progressWidth = progress * 100;
+      
+      if (progress > 0) {
+        progressAnimationId = requestAnimationFrame(animate);
+      }
+    };
+    
+    progressAnimationId = requestAnimationFrame(animate);
+  }
+  
+  // 通知を閉じる
+  function close() {
+    visible = false;
+    clearAutoRemoval();
     dispatch('close');
   }
   
-  // アクセシビリティ: 要素の参照
-  let toastElement;
+  // アクションボタンのクリック処理
+  function handleActionClick(action) {
+    try {
+      action.onClick();
+      // アクションが成功した場合は通知を閉じる
+      close();
+    } catch (error) {
+      console.error('Notification action error:', error);
+    }
+  }
+  
+  // キーボードナビゲーション
+  function handleKeyDown(event) {
+    if (event.key === 'Escape' && dismissible) {
+      close();
+    }
+  }
+  
+  // アクセシビリティ: 通知タイプに基づくARIAロール
+  $: ariaRole = type === 'error' ? 'alert' : 'status';
+  
+  // アクセシビリティ: 通知の重要度
+  $: ariaLive = type === 'error' ? 'assertive' : 'polite';
+  
+  // プログレスバーの色
+  $: progressColor = {
+    success: '#10b981',
+    error: '#ef4444',
+    warning: '#f59e0b',
+    info: '#3b82f6'
+  }[type] || '#6b7280';
 </script>
 
 {#if visible}
   <div
     bind:this={toastElement}
     class="toast toast-{type}"
-    role="alert"
-    aria-live="polite"
+    class:paused={isPaused}
+    role={ariaRole}
+    aria-live={ariaLive}
     aria-atomic="true"
+    tabindex="0"
+    on:keydown={handleKeyDown}
   >
     <div class="toast-content">
       <div class="toast-icon">
@@ -62,6 +200,22 @@
       <div class="toast-message">
         {message}
       </div>
+      
+      <!-- アクションボタン -->
+      {#if actions && actions.length > 0}
+        <div class="toast-actions">
+          {#each actions as action}
+            <button
+              class="toast-action toast-action-{action.variant || 'primary'}"
+              on:click={() => handleActionClick(action)}
+              type="button"
+            >
+              {action.label}
+            </button>
+          {/each}
+        </div>
+      {/if}
+      
       {#if dismissible}
         <button
           class="toast-close"
@@ -75,6 +229,16 @@
         </button>
       {/if}
     </div>
+    
+    <!-- プログレスバー -->
+    {#if showProgress && duration > 0}
+      <div class="toast-progress" bind:this={progressElement}>
+        <div 
+          class="toast-progress-bar"
+          style="width: {progressWidth}%; background-color: {progressColor};"
+        ></div>
+      </div>
+    {/if}
   </div>
 {/if}
 
@@ -156,6 +320,75 @@
   .toast-close:focus {
     outline: 2px solid currentColor;
     outline-offset: 2px;
+  }
+
+  /* アクションボタン */
+  .toast-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .toast-action {
+    padding: 0.25rem 0.75rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .toast-action-primary {
+    background-color: #3b82f6;
+    color: white;
+  }
+
+  .toast-action-primary:hover {
+    background-color: #2563eb;
+  }
+
+  .toast-action-secondary {
+    background-color: transparent;
+    color: currentColor;
+    border-color: currentColor;
+  }
+
+  .toast-action-secondary:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .toast-action:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+
+  /* プログレスバー */
+  .toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 0 0 0.5rem 0.5rem;
+    overflow: hidden;
+  }
+
+  .toast-progress-bar {
+    height: 100%;
+    transition: width 0.1s linear;
+    border-radius: 0 0 0.5rem 0.5rem;
+  }
+
+  /* 一時停止状態 */
+  .toast.paused {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 0 0 2px #3b82f6;
+  }
+
+  .toast.paused .toast-progress-bar {
+    animation-play-state: paused;
   }
   
   @keyframes slideIn {

@@ -8,6 +8,10 @@
   import { uiStore, uiActions } from '$lib/stores/ui.js';
   import { setupAuthMonitoring, performLogout } from '$lib/utils/auth-guard.js';
   import { initializeSecurity } from '$lib/utils/security.js';
+  import { initializeErrorHandler } from '$lib/utils/error-handler.js';
+  import { initializeNetworkMonitor, networkStore } from '$lib/utils/network-monitor.js';
+  import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
+  import NotificationContainer from '$lib/components/NotificationContainer.svelte';
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
   import NotificationToast from '$lib/components/NotificationToast.svelte';
   import ResponsiveLayout from '$lib/components/ResponsiveLayout.svelte';
@@ -17,6 +21,7 @@
   // ストアの状態を購読
   $: auth = $authStore;
   $: ui = $uiStore;
+  $: network = $networkStore;
 
   // 認証監視のクリーンアップ関数
   let authMonitoringCleanup;
@@ -57,6 +62,12 @@
 
   // 初期化処理
   onMount(() => {
+    // エラーハンドリングシステムの初期化
+    initializeErrorHandler();
+    
+    // ネットワーク監視の初期化
+    initializeNetworkMonitor();
+    
     // セキュリティ機能の初期化
     initializeSecurity();
     
@@ -130,9 +141,17 @@
 
     <!-- メインコンテンツ -->
     <main class="main-content">
-      <PageTransition transitionType="fade" duration={300}>
-        <slot />
-      </PageTransition>
+      <ErrorBoundary
+        errorTitle="アプリケーションエラー"
+        errorMessage="アプリケーションでエラーが発生しました。ページを再読み込みするか、しばらく待ってから再試行してください。"
+        showRetry={true}
+        retryText="再読み込み"
+        onRetry={() => window.location.reload()}
+      >
+        <PageTransition transitionType="fade" duration={300}>
+          <slot />
+        </PageTransition>
+      </ErrorBoundary>
     </main>
 
     <!-- フッター -->
@@ -175,17 +194,27 @@
       </div>
     {/if}
 
+    <!-- ネットワーク状態インジケーター -->
+    {#if !network.isOnline}
+      <div class="network-status offline" role="alert" aria-live="polite">
+        <div class="network-status-content">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" class="network-icon">
+            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+            <path d="M3 16l14-14" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span>オフライン - 接続が復旧したら自動的に同期されます</span>
+        </div>
+      </div>
+    {/if}
+
     <!-- 通知システム -->
-    <div class="notifications-container">
-      {#each ui.notifications as notification (notification.id)}
-        <NotificationToast
-          message={notification.message}
-          type={notification.type}
-          duration={0}
-          on:close={() => handleNotificationClose(notification.id)}
-        />
-      {/each}
-    </div>
+    <NotificationContainer
+      position="top-right"
+      maxNotifications={5}
+      defaultDuration={5000}
+      pauseOnHover={true}
+      stackDirection="down"
+    />
   </div>
 </ResponsiveLayout>
 
@@ -306,16 +335,37 @@
     font-weight: 500;
   }
 
-  /* 通知コンテナ */
-  .notifications-container {
+  /* ネットワーク状態インジケーター */
+  .network-status {
     position: fixed;
-    top: 1rem;
-    right: 1rem;
-    z-index: 1000;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1001;
+    padding: 0.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .network-status.offline {
+    background-color: #f59e0b;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .network-status-content {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 0.5rem;
   }
+
+  .network-icon {
+    flex-shrink: 0;
+  }
+
+
 
   /* レスポンシブデザイン */
   @media (max-width: 768px) {
