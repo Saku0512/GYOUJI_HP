@@ -1,10 +1,12 @@
 <script>
   import '../app.css';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { authStore } from '$lib/stores/auth.js';
   import { uiStore, uiActions } from '$lib/stores/ui.js';
+  import { setupAuthMonitoring, performLogout } from '$lib/utils/auth-guard.js';
+  import { initializeSecurity } from '$lib/utils/security.js';
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
   import NotificationToast from '$lib/components/NotificationToast.svelte';
 
@@ -14,32 +16,43 @@
 
   // モバイルメニューの表示状態
   let mobileMenuOpen = false;
+  
+  // 認証監視のクリーンアップ関数
+  let authMonitoringCleanup;
 
   // 初期化処理
   onMount(() => {
+    // セキュリティ機能の初期化
+    initializeSecurity();
+    
     // テーマの読み込み
     uiActions.loadTheme();
     
     // 認証状態の初期化
     authStore.initialize();
+    
+    // 認証監視の開始
+    authMonitoringCleanup = setupAuthMonitoring();
+  });
+
+  // クリーンアップ処理
+  onDestroy(() => {
+    if (authMonitoringCleanup) {
+      authMonitoringCleanup();
+    }
   });
 
   // ログアウト処理
   async function handleLogout() {
     try {
       uiActions.setLoading(true);
-      const result = await authStore.logout();
+      uiActions.showNotification('ログアウト中...', 'info');
       
-      if (result.success) {
-        uiActions.showNotification('ログアウトしました', 'success');
-        goto('/');
-      } else {
-        uiActions.showNotification(result.message || 'ログアウトに失敗しました', 'error');
-      }
+      // 認証ガードのログアウト処理を使用
+      await performLogout('/');
     } catch (error) {
       console.error('Logout error:', error);
       uiActions.showNotification('ログアウト処理でエラーが発生しました', 'error');
-    } finally {
       uiActions.setLoading(false);
     }
   }

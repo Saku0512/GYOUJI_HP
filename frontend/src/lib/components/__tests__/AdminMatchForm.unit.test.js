@@ -66,26 +66,26 @@ describe('AdminMatchForm ロジックテスト', () => {
     it('負の数値の場合はエラー', () => {
       const result = validateMatchResult('-1', '2');
       expect(result.isValid).toBe(false);
-      expect(result.errors.score1).toBe('スコアは0以上の数値である必要があります');
+      expect(result.errors.score1).toBe('チーム1のスコアは0以上である必要があります');
     });
 
     it('空の値の場合はエラー', () => {
       const result = validateMatchResult('', '2');
       expect(result.isValid).toBe(false);
-      expect(result.errors.score1).toBe('スコアは必須です');
+      expect(result.errors.score1).toBe('チーム1のスコアは必須です');
     });
 
     it('文字列の場合はエラー', () => {
       const result = validateMatchResult('abc', '2');
       expect(result.isValid).toBe(false);
-      expect(result.errors.score1).toBe('スコアは0以上の数値である必要があります');
+      expect(result.errors.score1).toBe('チーム1のスコアは数値である必要があります');
     });
 
     it('両方のスコアが無効な場合', () => {
       const result = validateMatchResult('', 'xyz');
       expect(result.isValid).toBe(false);
-      expect(result.errors.score1).toBe('スコアは必須です');
-      expect(result.errors.score2).toBe('スコアは0以上の数値である必要があります');
+      expect(result.errors.score1).toBe('チーム1のスコアは必須です');
+      expect(result.errors.score2).toBe('チーム2のスコアは数値である必要があります');
     });
 
     it('0は有効なスコア', () => {

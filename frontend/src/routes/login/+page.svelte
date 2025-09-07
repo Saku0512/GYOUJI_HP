@@ -3,7 +3,11 @@
   import { goto } from '$app/navigation';
   import { authStore } from '$lib/stores/auth.js';
   import { uiActions, showErrorNotification, showSuccessNotification } from '$lib/stores/ui.js';
-  import { validateLoginCredentials } from '$lib/utils/validation.js';
+  import { validateLoginCredentials, debounce } from '$lib/utils/validation.js';
+  import { csrfTokenManager, defaultRateLimiter, securityLogger } from '$lib/utils/security.js';
+  
+  // ページデータを取得
+  export let data;
 
   // フォームデータ
   let formData = {
@@ -17,6 +21,15 @@
   // フォーム状態
   let isSubmitting = false;
   let showPassword = false;
+  let loginAttempts = 0;
+  let isRateLimited = false;
+  
+  // CSRFトークン
+  let csrfToken = '';
+  
+  // エラー表示用
+  let errorMessage = '';
+  let successMessage = '';
 
   // 認証ストアの状態を購読
   let authState = {};
@@ -24,18 +37,47 @@
     authState = state;
   });
 
-  // 既にログイン済みの場合は管理者ダッシュボードにリダイレクト
+  // 初期化処理
   onMount(() => {
+    // CSRFトークンを取得
+    csrfToken = csrfTokenManager.getToken();
+    
+    // URLパラメータからエラー情報を表示
+    if (data.errorType) {
+      displayErrorMessage(data.errorType);
+    }
+    
+    // 既にログイン済みの場合は管理者ダッシュボードにリダイレクト
     if (authState.isAuthenticated) {
-      // URLパラメータからリダイレクト先を取得
-      const urlParams = new URLSearchParams(window.location.search);
-      const redirectTo = urlParams.get('redirect') || '/admin';
+      const redirectTo = data.redirectTarget || '/admin';
       goto(redirectTo);
     }
   });
+  
+  // エラーメッセージの表示
+  function displayErrorMessage(errorType) {
+    const errorMessages = {
+      expired: 'セッションの有効期限が切れました。再度ログインしてください。',
+      invalid: 'トークンが無効です。再度ログインしてください。',
+      unauthorized: 'アクセス権限がありません。',
+      network_error: 'ネットワークエラーが発生しました。',
+      logout_error: 'ログアウト処理でエラーが発生しましたが、認証情報はクリアされました。',
+      session_expired: 'セッションが期限切れになりました。',
+      error: 'エラーが発生しました。再度お試しください。'
+    };
+    
+    errorMessage = errorMessages[errorType] || 'エラーが発生しました。';
+    
+    // セキュリティログに記録
+    securityLogger.logEvent('LOGIN_PAGE_ERROR', {
+      errorType,
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString()
+    });
+  }
 
-  // リアルタイムバリデーション
-  function validateField(fieldName) {
+  // リアルタイムバリデーション（デバウンス付き）
+  const debouncedValidation = debounce((fieldName) => {
     const validation = validateLoginCredentials(formData.username, formData.password);
 
     if (validation.errors[fieldName]) {
@@ -46,6 +88,10 @@
 
     // リアクティブ更新をトリガー
     validationErrors = { ...validationErrors };
+  }, 300);
+
+  function validateField(fieldName) {
+    debouncedValidation(fieldName);
   }
 
   // フォーム送信処理
@@ -55,59 +101,126 @@
     // 既に送信中の場合は処理をスキップ
     if (isSubmitting) return;
 
+    // レート制限チェック
+    const clientId = `login_${formData.username || 'anonymous'}`;
+    if (!defaultRateLimiter.isAllowed(clientId)) {
+      isRateLimited = true;
+      errorMessage = 'ログイン試行回数が上限に達しました。しばらく待ってから再試行してください。';
+      
+      securityLogger.logEvent('RATE_LIMIT_EXCEEDED', {
+        username: formData.username,
+        attempts: loginAttempts,
+        clientId
+      });
+      
+      return;
+    }
+
     // フォーム全体のバリデーション
     const validation = validateLoginCredentials(formData.username, formData.password);
 
     if (!validation.isValid) {
       validationErrors = validation.errors;
-      showErrorNotification('入力内容を確認してください');
+      errorMessage = '入力内容を確認してください';
+      
+      securityLogger.logEvent('LOGIN_VALIDATION_FAILED', {
+        username: formData.username,
+        errors: validation.errors
+      });
+      
       return;
     }
 
     // バリデーションエラーをクリア
     validationErrors = {};
+    errorMessage = '';
     isSubmitting = true;
+    loginAttempts++;
 
     try {
-      // ログイン処理を実行
-      const result = await authStore.login({
-        username: formData.username.trim(),
-        password: formData.password
+      // サニタイズされたデータを使用
+      const sanitizedCredentials = {
+        username: validation.sanitizedData.username,
+        password: validation.sanitizedData.password,
+        csrfToken: csrfToken
+      };
+
+      // セキュリティログに記録
+      securityLogger.logEvent('LOGIN_ATTEMPT', {
+        username: sanitizedCredentials.username,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
       });
+
+      // ログイン処理を実行
+      const result = await authStore.login(sanitizedCredentials);
 
       if (result.success) {
         // ログイン成功
-        showSuccessNotification('ログインに成功しました');
+        successMessage = 'ログインに成功しました';
+        loginAttempts = 0; // 成功時はカウンターをリセット
+        
+        securityLogger.logEvent('LOGIN_SUCCESS', {
+          username: sanitizedCredentials.username,
+          timestamp: new Date().toISOString()
+        });
 
-        // リダイレクト先を決定（URLパラメータまたはデフォルト）
-        const urlParams = new URLSearchParams(window.location.search);
-        const redirectTo = urlParams.get('redirect') || '/admin';
+        // リダイレクト先を決定
+        const redirectTo = data.redirectTarget || '/admin';
 
         // 管理者ダッシュボードまたは指定されたページにリダイレクト
         setTimeout(() => {
           goto(redirectTo);
-        }, 500);
+        }, 1000);
       } else {
         // ログイン失敗
-        let errorMessage = 'ログインに失敗しました';
+        let failureMessage = 'ログインに失敗しました';
 
         // エラーの種類に応じてメッセージを調整
         if (result.error === 'INVALID_CREDENTIALS') {
-          errorMessage = 'ユーザー名またはパスワードが正しくありません';
+          failureMessage = 'ユーザー名またはパスワードが正しくありません';
         } else if (result.error === 'ACCOUNT_LOCKED') {
-          errorMessage = 'アカウントがロックされています';
+          failureMessage = 'アカウントがロックされています';
+        } else if (result.error === 'CSRF_TOKEN_MISMATCH') {
+          failureMessage = 'セキュリティトークンが無効です。ページを再読み込みしてください。';
+          // CSRFトークンを更新
+          csrfToken = csrfTokenManager.refreshToken();
         } else if (result.message) {
-          errorMessage = result.message;
+          failureMessage = result.message;
         }
 
-        showErrorNotification(errorMessage);
+        errorMessage = failureMessage;
+
+        // セキュリティログに記録
+        securityLogger.logEvent('LOGIN_FAILED', {
+          username: sanitizedCredentials.username,
+          error: result.error,
+          attempts: loginAttempts,
+          timestamp: new Date().toISOString()
+        });
 
         // パスワードフィールドをクリア
         formData.password = '';
+
+        // 連続失敗時の追加セキュリティ
+        if (loginAttempts >= 3) {
+          securityLogger.logEvent('MULTIPLE_LOGIN_FAILURES', {
+            username: sanitizedCredentials.username,
+            attempts: loginAttempts,
+            timestamp: new Date().toISOString()
+          });
+        }
       }
     } catch (error) {
       console.error('Login submission error:', error);
-      showErrorNotification('ログイン処理でエラーが発生しました');
+      errorMessage = 'ログイン処理でエラーが発生しました';
+
+      securityLogger.logEvent('LOGIN_ERROR', {
+        username: formData.username,
+        error: error.message,
+        attempts: loginAttempts,
+        timestamp: new Date().toISOString()
+      });
 
       // パスワードフィールドをクリア
       formData.password = '';
@@ -139,6 +252,26 @@
     <p class="login-description">
       トーナメント管理システムの管理者ダッシュボードにアクセスするには、認証情報を入力してください。
     </p>
+
+    <!-- エラー・成功メッセージ表示 -->
+    {#if errorMessage}
+      <div class="alert alert-error" role="alert">
+        {errorMessage}
+      </div>
+    {/if}
+    
+    {#if successMessage}
+      <div class="alert alert-success" role="alert">
+        {successMessage}
+      </div>
+    {/if}
+    
+    {#if isRateLimited}
+      <div class="alert alert-warning" role="alert">
+        セキュリティのため、ログイン試行が一時的に制限されています。
+        残り試行回数: {defaultRateLimiter.getRemainingRequests(formData.username || 'anonymous')}
+      </div>
+    {/if}
 
     <form on:submit={handleSubmit} novalidate>
       <!-- ユーザー名フィールド -->
@@ -196,16 +329,21 @@
         {/if}
       </div>
 
+      <!-- CSRFトークン -->
+      <input type="hidden" name="csrf_token" value={csrfToken} />
+
       <!-- 送信ボタン -->
       <button
         type="submit"
         class="login-button"
-        disabled={isSubmitting || authState.loading}
+        disabled={isSubmitting || authState.loading || isRateLimited}
         data-testid="login-button"
       >
         {#if isSubmitting || authState.loading}
           <span class="loading-spinner"></span>
           ログイン中...
+        {:else if isRateLimited}
+          制限中
         {:else}
           ログイン
         {/if}
@@ -257,6 +395,33 @@
     margin-bottom: 2rem;
     font-size: 0.875rem;
     line-height: 1.5;
+  }
+
+  .alert {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+  }
+
+  .alert-error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+  }
+
+  .alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+  }
+
+  .alert-warning {
+    color: #856404;
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
   }
 
   .form-group {

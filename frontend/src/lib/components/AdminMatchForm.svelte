@@ -1,7 +1,8 @@
 <script>
   // AdminMatchForm コンポーネント - 試合結果入力フォーム
   import { createEventDispatcher } from 'svelte';
-  import { validateMatchResult } from '../utils/validation.js';
+  import { validateMatchResult, debounce } from '../utils/validation.js';
+  import { csrfTokenManager, securityLogger, enforceInputLimits } from '../utils/security.js';
   import { uiActions } from '../stores/ui.js';
   import { matchAPI } from '../api/matches.js';
 
@@ -19,12 +20,69 @@
   let isSubmitting = false;
   let errors = {};
   let touched = { score1: false, score2: false };
+  let csrfToken = '';
+  let validationInProgress = false;
 
-  // リアルタイム検証
+  // CSRFトークンの初期化
+  $: if (typeof window !== 'undefined') {
+    csrfToken = csrfTokenManager.getToken();
+  }
+
+  // デバウンス付きリアルタイム検証
+  const debouncedValidation = debounce(() => {
+    if (touched.score1 || touched.score2) {
+      validationInProgress = true;
+      
+      // 入力値の長さ制限を適用
+      const limitedScore1 = enforceInputLimits(score1.toString(), 10);
+      const limitedScore2 = enforceInputLimits(score2.toString(), 10);
+      
+      // 制限が適用された場合は値を更新
+      if (limitedScore1 !== score1.toString()) {
+        score1 = limitedScore1;
+        securityLogger.logEvent('INPUT_LENGTH_LIMITED', {
+          field: 'score1',
+          originalLength: score1.toString().length,
+          limitedLength: limitedScore1.length
+        });
+      }
+      
+      if (limitedScore2 !== score2.toString()) {
+        score2 = limitedScore2;
+        securityLogger.logEvent('INPUT_LENGTH_LIMITED', {
+          field: 'score2',
+          originalLength: score2.toString().length,
+          limitedLength: limitedScore2.length
+        });
+      }
+      
+      const validation = validateMatchResult(score1, score2, match.team1, match.team2);
+      errors = validation.errors;
+      
+      // セキュリティ違反があった場合はログに記録
+      if (!validation.isValid && (validation.errors.score1 || validation.errors.score2)) {
+        const hasSecurityIssue = Object.values(validation.errors).some(error => 
+          error.includes('不正') || error.includes('スクリプト') || error.includes('文字')
+        );
+        
+        if (hasSecurityIssue) {
+          securityLogger.logEvent('FORM_SECURITY_VIOLATION', {
+            component: 'AdminMatchForm',
+            matchId: match.id,
+            errors: validation.errors,
+            values: { score1, score2 }
+          });
+        }
+      }
+      
+      validationInProgress = false;
+    }
+  }, 300);
+
+  // リアクティブ検証の実行
   $: {
     if (touched.score1 || touched.score2) {
-      const validation = validateMatchResult(score1, score2);
-      errors = validation.errors;
+      debouncedValidation();
     }
   }
 
@@ -62,17 +120,53 @@
   }
 
   /**
+   * 入力値の変更処理（セキュリティチェック付き）
+   */
+  function handleInputChange(field, value) {
+    // 入力値の長さ制限
+    const limitedValue = enforceInputLimits(value.toString(), 10);
+    
+    if (limitedValue !== value.toString()) {
+      securityLogger.logEvent('INPUT_LENGTH_EXCEEDED', {
+        component: 'AdminMatchForm',
+        field,
+        originalLength: value.toString().length,
+        limitedLength: limitedValue.length
+      });
+    }
+    
+    // 値を更新
+    if (field === 'score1') {
+      score1 = limitedValue;
+    } else if (field === 'score2') {
+      score2 = limitedValue;
+    }
+    
+    // タッチ状態を更新
+    handleFieldTouch(field);
+  }
+
+  /**
    * フォーム送信処理
    */
   async function handleSubmit() {
     // 全フィールドをタッチ済みにする
     touched = { score1: true, score2: true };
     
-    // 最終検証
-    const validation = validateMatchResult(score1, score2);
+    // 最終検証（サニタイゼーション付き）
+    const validation = validateMatchResult(score1, score2, match.team1, match.team2);
     if (!validation.isValid) {
       errors = validation.errors;
       uiActions.showNotification('入力内容を確認してください', 'error');
+      
+      // セキュリティ違反の可能性をログに記録
+      securityLogger.logEvent('FORM_SUBMISSION_BLOCKED', {
+        component: 'AdminMatchForm',
+        matchId: match.id,
+        errors: validation.errors,
+        timestamp: new Date().toISOString()
+      });
+      
       return;
     }
 
@@ -80,23 +174,43 @@
     uiActions.setLoading(true);
 
     try {
-      const result = {
-        score1: Number(score1),
-        score2: Number(score2),
-        winner: winner
+      // サニタイズされたデータを使用
+      const sanitizedResult = {
+        score1: validation.sanitizedData.score1,
+        score2: validation.sanitizedData.score2,
+        winner: winner,
+        csrfToken: csrfToken
       };
+
+      // セキュリティログに記録
+      securityLogger.logEvent('MATCH_RESULT_SUBMISSION', {
+        matchId: match.id,
+        team1: match.team1,
+        team2: match.team2,
+        score1: sanitizedResult.score1,
+        score2: sanitizedResult.score2,
+        winner: sanitizedResult.winner,
+        timestamp: new Date().toISOString()
+      });
 
       // APIを使用して試合結果を更新
       if (match.id) {
-        const response = await matchAPI.updateMatch(match.id, result);
+        const response = await matchAPI.updateMatch(match.id, sanitizedResult);
         
         if (response.success) {
           uiActions.showNotification('試合結果を更新しました', 'success');
-          dispatch('success', { match: match.id, result });
+          
+          // 成功ログ
+          securityLogger.logEvent('MATCH_RESULT_UPDATE_SUCCESS', {
+            matchId: match.id,
+            timestamp: new Date().toISOString()
+          });
+          
+          dispatch('success', { match: match.id, result: sanitizedResult });
           
           // 親コンポーネントのonSubmitも呼び出す
           if (typeof onSubmit === 'function') {
-            onSubmit(result);
+            onSubmit(sanitizedResult);
           }
         } else {
           throw new Error(response.message || '試合結果の更新に失敗しました');
@@ -104,18 +218,34 @@
       } else {
         // match.idがない場合は親コンポーネントのonSubmitのみ呼び出す
         if (typeof onSubmit === 'function') {
-          await onSubmit(result);
+          await onSubmit(sanitizedResult);
         }
         uiActions.showNotification('試合結果を保存しました', 'success');
-        dispatch('success', { result });
+        dispatch('success', { result: sanitizedResult });
       }
 
     } catch (error) {
       console.error('Submit error:', error);
-      uiActions.showNotification(
-        error.message || '試合結果の保存に失敗しました', 
-        'error'
-      );
+      
+      // エラーログ
+      securityLogger.logEvent('MATCH_RESULT_SUBMISSION_ERROR', {
+        matchId: match.id,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+      
+      let errorMessage = '試合結果の保存に失敗しました';
+      
+      // エラーの種類に応じてメッセージを調整
+      if (error.message && error.message.includes('CSRF')) {
+        errorMessage = 'セキュリティトークンが無効です。ページを再読み込みしてください。';
+        // CSRFトークンを更新
+        csrfToken = csrfTokenManager.refreshToken();
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      uiActions.showNotification(errorMessage, 'error');
       dispatch('error', { error: error.message });
     } finally {
       isSubmitting = false;
@@ -164,13 +294,16 @@
       <input 
         type="number" 
         id="score1" 
-        bind:value={score1} 
+        value={score1}
+        on:input={(e) => handleInputChange('score1', e.target.value)}
         min="0" 
+        max="999"
         required 
-        disabled={disabled || isSubmitting}
+        disabled={disabled || isSubmitting || validationInProgress}
         class:error={errors.score1}
         on:blur={() => handleFieldTouch('score1')}
         data-testid="score1"
+        autocomplete="off"
       />
       {#if errors.score1}
         <span class="error-message">{errors.score1}</span>
@@ -182,13 +315,16 @@
       <input 
         type="number" 
         id="score2" 
-        bind:value={score2} 
+        value={score2}
+        on:input={(e) => handleInputChange('score2', e.target.value)}
         min="0" 
+        max="999"
         required 
-        disabled={disabled || isSubmitting}
+        disabled={disabled || isSubmitting || validationInProgress}
         class:error={errors.score2}
         on:blur={() => handleFieldTouch('score2')}
         data-testid="score2"
+        autocomplete="off"
       />
       {#if errors.score2}
         <span class="error-message">{errors.score2}</span>
@@ -203,12 +339,15 @@
     </div>
   {/if}
 
+  <!-- CSRFトークン -->
+  <input type="hidden" name="csrf_token" value={csrfToken} />
+
   <div class="form-actions">
     <button 
       type="button" 
       class="cancel-button"
       on:click={handleCancel}
-      disabled={isSubmitting}
+      disabled={isSubmitting || validationInProgress}
     >
       キャンセル
     </button>
@@ -216,12 +355,15 @@
     <button 
       type="submit" 
       class="submit-button"
-      disabled={!isFormValid || disabled || isSubmitting}
+      disabled={!isFormValid || disabled || isSubmitting || validationInProgress}
       data-testid="submit-result"
     >
       {#if isSubmitting}
         <span class="loading-spinner"></span>
         保存中...
+      {:else if validationInProgress}
+        <span class="loading-spinner"></span>
+        検証中...
       {:else}
         結果を保存
       {/if}
