@@ -10,6 +10,7 @@
   import { initializeSecurity } from '$lib/utils/security.js';
   import { initializeErrorHandler } from '$lib/utils/error-handler.js';
   import { initializeNetworkMonitor, networkStore } from '$lib/utils/network-monitor.js';
+  import { performanceMonitor, runPerformanceTest } from '$lib/utils/performance.js';
   import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
   import NotificationContainer from '$lib/components/NotificationContainer.svelte';
   import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
@@ -62,6 +63,14 @@
 
   // 初期化処理
   onMount(() => {
+    // パフォーマンス監視の開始
+    performanceMonitor.measureWebVitals();
+    
+    // 開発環境でのパフォーマンステスト実行
+    if (import.meta.env.DEV) {
+      runPerformanceTest();
+    }
+    
     // エラーハンドリングシステムの初期化
     initializeErrorHandler();
     
@@ -86,6 +95,9 @@
     if (authMonitoringCleanup) {
       authMonitoringCleanup();
     }
+    
+    // パフォーマンス監視のクリーンアップ
+    performanceMonitor.disconnect();
   });
 
   // ログアウト処理

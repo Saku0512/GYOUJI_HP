@@ -1,15 +1,1 @@
-import { redirect } from "@sveltejs/kit";
-import { g as getAuthToken } from "../../../chunks/storage.js";
-async function load({ url }) {
-  if (typeof window !== "undefined") {
-    const token = getAuthToken();
-    if (token) {
-      const redirectTo = url.searchParams.get("redirect") || "/admin";
-      throw redirect(302, redirectTo);
-    }
-  }
-  return {};
-}
-export {
-  load
-};
+import{a as r}from"../../../chunks/auth-guard.js";async function e({url:e}){r(e,{redirectTo:"/admin",checkExpired:!0});return{errorType:e.searchParams.get("expired")?"expired":e.searchParams.get("invalid")?"invalid":e.searchParams.get("unauthorized")?"unauthorized":e.searchParams.get("network_error")?"network_error":e.searchParams.get("logout_error")?"logout_error":e.searchParams.get("session_expired")?"session_expired":e.searchParams.get("error")?"error":null,redirectTarget:e.searchParams.get("redirect")}}export{e as load};

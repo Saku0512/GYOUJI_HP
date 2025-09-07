@@ -1,4 +1,1 @@
-const BROWSER = false;
-export {
-  BROWSER as B
-};
+const o=!1;export{o as B};

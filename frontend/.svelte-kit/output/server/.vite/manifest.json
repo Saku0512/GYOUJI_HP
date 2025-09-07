@@ -9,19 +9,58 @@
       "_environment.js"
     ]
   },
-  "_LoadingSpinner.BxzunYK5.css": {
-    "file": "_app/immutable/assets/LoadingSpinner.BxzunYK5.css",
-    "src": "_LoadingSpinner.BxzunYK5.css"
+  "_AnimatedTransition.D47Mopqw.css": {
+    "file": "_app/immutable/assets/AnimatedTransition.D47Mopqw.css",
+    "src": "_AnimatedTransition.D47Mopqw.css"
+  },
+  "_AnimatedTransition.js": {
+    "file": "chunks/AnimatedTransition.js",
+    "name": "AnimatedTransition",
+    "imports": [
+      "_index2.js",
+      "_index.js",
+      "_utils2.js"
+    ],
+    "css": [
+      "_app/immutable/assets/AnimatedTransition.D47Mopqw.css"
+    ]
+  },
+  "_ErrorBoundary.C8UzbSjG.css": {
+    "file": "_app/immutable/assets/ErrorBoundary.C8UzbSjG.css",
+    "src": "_ErrorBoundary.C8UzbSjG.css"
   },
   "_LoadingSpinner.js": {
     "file": "chunks/LoadingSpinner.js",
     "name": "LoadingSpinner",
     "imports": [
+      "_index2.js",
+      "_AnimatedTransition.js",
+      "_utils2.js"
+    ]
+  },
+  "_StaggeredList.CmVwnfCe.css": {
+    "file": "_app/immutable/assets/StaggeredList.CmVwnfCe.css",
+    "src": "_StaggeredList.CmVwnfCe.css"
+  },
+  "_StaggeredList.js": {
+    "file": "chunks/StaggeredList.js",
+    "name": "StaggeredList",
+    "imports": [
       "_index.js",
-      "_index2.js"
+      "_client.js",
+      "_index2.js",
+      "_utils2.js"
     ],
     "css": [
-      "_app/immutable/assets/LoadingSpinner.BxzunYK5.css"
+      "_app/immutable/assets/StaggeredList.CmVwnfCe.css"
+    ]
+  },
+  "_auth-guard.js": {
+    "file": "chunks/auth-guard.js",
+    "name": "auth-guard",
+    "imports": [
+      "_index.js",
+      "_auth.js"
     ]
   },
   "_auth.js": {
@@ -29,13 +68,15 @@
     "name": "auth",
     "imports": [
       "_index.js",
-      "_client.js",
-      "_storage.js"
+      "_client.js"
     ]
   },
   "_client.js": {
     "file": "chunks/client.js",
-    "name": "client"
+    "name": "client",
+    "imports": [
+      "_index.js"
+    ]
   },
   "_environment.js": {
     "file": "chunks/environment.js",
@@ -53,13 +94,14 @@
     "file": "chunks/index.js",
     "name": "index",
     "imports": [
-      "_index2.js"
+      "_utils2.js"
     ]
   },
   "_index2.js": {
     "file": "chunks/index2.js",
     "name": "index",
     "imports": [
+      "_utils2.js",
       "_false.js"
     ]
   },
@@ -67,6 +109,7 @@
     "file": "chunks/internal.js",
     "name": "internal",
     "imports": [
+      "_utils2.js",
       "_index2.js",
       "_environment.js"
     ]
@@ -82,25 +125,19 @@
     "file": "chunks/state.svelte.js",
     "name": "state.svelte",
     "imports": [
-      "_index2.js"
-    ]
-  },
-  "_storage.js": {
-    "file": "chunks/storage.js",
-    "name": "storage"
-  },
-  "_tournament.js": {
-    "file": "chunks/tournament.js",
-    "name": "tournament",
-    "imports": [
-      "_index2.js",
-      "_index.js",
-      "_client.js"
+      "_utils2.js"
     ]
   },
   "_utils.js": {
     "file": "chunks/utils.js",
     "name": "utils"
+  },
+  "_utils2.js": {
+    "file": "chunks/utils2.js",
+    "name": "utils",
+    "imports": [
+      "_false.js"
+    ]
   },
   "node_modules/@sveltejs/kit/src/runtime/app/server/remote/index.js": {
     "file": "remote-entry.js",
@@ -148,14 +185,20 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
+      "_AnimatedTransition.js",
       "_exports.js",
       "_utils.js",
       "_state.svelte.js",
       "_auth.js",
+      "_client.js",
+      "_auth-guard.js",
+      "_index.js",
+      "_utils2.js",
       "_LoadingSpinner.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.DepCCaG9.css"
+      "_app/immutable/assets/_layout.DVwU89WH.css",
+      "_app/immutable/assets/ErrorBoundary.C8UzbSjG.css"
     ]
   },
   "src/routes/+page.svelte": {
@@ -165,11 +208,14 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
-      "_tournament.js",
+      "_AnimatedTransition.js",
+      "_StaggeredList.js",
+      "_client.js",
+      "_utils2.js",
       "_LoadingSpinner.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.BzoyCMDr.css"
+      "_app/immutable/assets/_page.D-RB56QC.css"
     ]
   },
   "src/routes/admin/+page.js": {
@@ -178,7 +224,7 @@
     "src": "src/routes/admin/+page.js",
     "isEntry": true,
     "imports": [
-      "_storage.js"
+      "_auth-guard.js"
     ]
   },
   "src/routes/admin/+page.svelte": {
@@ -188,13 +234,15 @@
     "isEntry": true,
     "imports": [
       "_index2.js",
-      "_tournament.js",
+      "_AnimatedTransition.js",
       "_auth.js",
-      "_client.js"
+      "_StaggeredList.js",
+      "_client.js",
+      "_utils2.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.BRqrkP92.css",
-      "_app/immutable/assets/LoadingSpinner.BxzunYK5.css"
+      "_app/immutable/assets/_page.BZkMFYum.css",
+      "_app/immutable/assets/ErrorBoundary.C8UzbSjG.css"
     ]
   },
   "src/routes/login/+page.js": {
@@ -203,7 +251,7 @@
     "src": "src/routes/login/+page.js",
     "isEntry": true,
     "imports": [
-      "_storage.js"
+      "_auth-guard.js"
     ]
   },
   "src/routes/login/+page.svelte": {
@@ -219,7 +267,7 @@
       "_auth.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.B6BljH5-.css"
+      "_app/immutable/assets/_page.C8CwgfNd.css"
     ]
   }
 }

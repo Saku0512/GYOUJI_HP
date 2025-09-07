@@ -6,7 +6,7 @@
   import { uiActions } from '../../lib/stores/ui.js';
   import { matchAPI } from '../../lib/api/matches.js';
   import { tournamentAPI } from '../../lib/api/tournament.js';
-  import AdminMatchForm from '../../lib/components/AdminMatchForm.svelte';
+  import LazyComponent from '../../lib/components/LazyComponent.svelte';
   import LoadingSpinner from '../../lib/components/LoadingSpinner.svelte';
   import Button from '../../lib/components/Button.svelte';
   import Select from '../../lib/components/Select.svelte';
@@ -560,11 +560,19 @@
         className="form-container-wrapper"
       >
         <div class="form-container">
-          <AdminMatchForm 
-            match={selectedMatch}
-            on:success={handleMatchSubmitSuccess}
-            on:error={handleMatchSubmitError}
-            on:cancel={handleMatchFormCancel}
+          <LazyComponent
+            componentImport={() => import('../../lib/components/AdminMatchForm.svelte')}
+            componentName="AdminMatchForm"
+            loadingText="フォームを読み込み中..."
+            errorTitle="フォーム読み込みエラー"
+            errorMessage="試合結果入力フォームの読み込みに失敗しました。"
+            minLoadingTime={200}
+            props={{
+              match: selectedMatch,
+              onSuccess: handleMatchSubmitSuccess,
+              onError: handleMatchSubmitError,
+              onCancel: handleMatchFormCancel
+            }}
           />
         </div>
       </AnimatedTransition>

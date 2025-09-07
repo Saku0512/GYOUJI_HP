@@ -1,15 +1,1 @@
-import "clsx";
-import { X as noop } from "./index2.js";
-const is_legacy = noop.toString().includes("$$") || /function \w+\(\) \{\}/.test(noop.toString());
-if (is_legacy) {
-  ({
-    data: {},
-    form: null,
-    error: null,
-    params: {},
-    route: { id: null },
-    state: {},
-    status: -1,
-    url: new URL("https://example.com")
-  });
-}
+import"clsx";import{z as t}from"./utils2.js";(t.toString().includes("$$")||/function \w+\(\) \{\}/.test(t.toString()))&&new URL("https://example.com");
