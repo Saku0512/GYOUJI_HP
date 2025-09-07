@@ -8,11 +8,110 @@
       name="description"
       content="トーナメント管理システム - バレーボール、卓球、サッカーのトーナメント管理"
     />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#007bff" />
+    <meta name="msapplication-TileColor" content="#007bff" />
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192x192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Tournament" />
+    
+    <!-- Resource Hints -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+    <link rel="preconnect" href="//fonts.gstatic.com" crossorigin />
+    
+    <!-- Critical CSS inlined here for better performance -->
+    <style>
+      /* Critical CSS for initial render */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background-color: #f8f9fa;
+        color: #333;
+      }
+      
+      /* Loading spinner for initial load */
+      .initial-loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      
+      .initial-loading .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #e0e0e0;
+        border-top: 4px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Hide loading when app is ready */
+      .app-ready .initial-loading {
+        display: none;
+      }
+    </style>
+    
     <title>Tournament Management System</title>
     %sveltekit.head%
   </head>
 
   <body data-sveltekit-preload-data="hover">
+    <!-- Initial loading screen -->
+    <div class="initial-loading">
+      <div class="spinner"></div>
+    </div>
+    
     <div style="display: contents">%sveltekit.body%</div>
+    
+    <!-- Optimization initialization script -->
+    <script>
+      // Initialize optimizations as soon as possible
+      (function() {
+        // Mark app as ready when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+          document.body.classList.add('app-ready');
+        });
+        
+        // Service Worker update notification
+        window.addEventListener('sw-update-available', function(event) {
+          if (confirm('新しいバージョンが利用可能です。更新しますか？')) {
+            if (window.__swManager) {
+              window.__swManager.skipWaiting();
+            }
+          }
+        });
+        
+        // Performance monitoring for critical metrics
+        if ('performance' in window && 'getEntriesByType' in performance) {
+          window.addEventListener('load', function() {
+            // Record initial load time
+            const navigation = performance.getEntriesByType('navigation')[0];
+            if (navigation) {
+              console.log('Page load time:', navigation.loadEventEnd - navigation.loadEventStart, 'ms');
+            }
+          });
+        }
+      })();
+    </script>
   </body>
 </html>

@@ -27,17 +27,18 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/admin" | "/login";
+		RouteId(): "/" | "/admin" | "/login" | "/offline";
 		RouteParams(): {
 			
 		};
 		LayoutParams(): {
 			"/": Record<string, never>;
 			"/admin": Record<string, never>;
-			"/login": Record<string, never>
+			"/login": Record<string, never>;
+			"/offline": Record<string, never>
 		};
-		Pathname(): "/" | "/admin" | "/admin/" | "/login" | "/login/";
+		Pathname(): "/" | "/admin" | "/admin/" | "/login" | "/login/" | "/offline" | "/offline/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): string & {};
+		Asset(): "/manifest.json" | "/sw.js" | string & {};
 	}
 }

@@ -17,9 +17,7 @@
     "file": "chunks/AnimatedTransition.js",
     "name": "AnimatedTransition",
     "imports": [
-      "_index2.js",
-      "_index.js",
-      "_utils2.js"
+      "_vendor.js"
     ],
     "css": [
       "_app/immutable/assets/AnimatedTransition.D47Mopqw.css"
@@ -33,9 +31,8 @@
     "file": "chunks/LoadingSpinner.js",
     "name": "LoadingSpinner",
     "imports": [
-      "_index2.js",
-      "_AnimatedTransition.js",
-      "_utils2.js"
+      "_vendor.js",
+      "_AnimatedTransition.js"
     ]
   },
   "_StaggeredList.CmVwnfCe.css": {
@@ -46,20 +43,25 @@
     "file": "chunks/StaggeredList.js",
     "name": "StaggeredList",
     "imports": [
-      "_index.js",
-      "_client.js",
-      "_index2.js",
-      "_utils2.js"
+      "_vendor.js",
+      "_api.js"
     ],
     "css": [
       "_app/immutable/assets/StaggeredList.CmVwnfCe.css"
+    ]
+  },
+  "_api.js": {
+    "file": "chunks/api.js",
+    "name": "api",
+    "imports": [
+      "_vendor.js"
     ]
   },
   "_auth-guard.js": {
     "file": "chunks/auth-guard.js",
     "name": "auth-guard",
     "imports": [
-      "_index.js",
+      "_vendor.js",
       "_auth.js"
     ]
   },
@@ -67,15 +69,8 @@
     "file": "chunks/auth.js",
     "name": "auth",
     "imports": [
-      "_index.js",
-      "_client.js"
-    ]
-  },
-  "_client.js": {
-    "file": "chunks/client.js",
-    "name": "client",
-    "imports": [
-      "_index.js"
+      "_vendor.js",
+      "_api.js"
     ]
   },
   "_environment.js": {
@@ -86,31 +81,11 @@
     "file": "chunks/exports.js",
     "name": "exports"
   },
-  "_false.js": {
-    "file": "chunks/false.js",
-    "name": "false"
-  },
-  "_index.js": {
-    "file": "chunks/index.js",
-    "name": "index",
-    "imports": [
-      "_utils2.js"
-    ]
-  },
-  "_index2.js": {
-    "file": "chunks/index2.js",
-    "name": "index",
-    "imports": [
-      "_utils2.js",
-      "_false.js"
-    ]
-  },
   "_internal.js": {
     "file": "chunks/internal.js",
     "name": "internal",
     "imports": [
-      "_utils2.js",
-      "_index2.js",
+      "_vendor.js",
       "_environment.js"
     ]
   },
@@ -118,14 +93,14 @@
     "file": "chunks/shared.js",
     "name": "shared",
     "imports": [
-      "_utils.js"
+      "_utils2.js"
     ]
   },
   "_state.svelte.js": {
     "file": "chunks/state.svelte.js",
     "name": "state.svelte",
     "imports": [
-      "_utils2.js"
+      "_vendor.js"
     ]
   },
   "_utils.js": {
@@ -134,10 +109,11 @@
   },
   "_utils2.js": {
     "file": "chunks/utils2.js",
-    "name": "utils",
-    "imports": [
-      "_false.js"
-    ]
+    "name": "utils"
+  },
+  "_vendor.js": {
+    "file": "chunks/vendor.js",
+    "name": "vendor"
   },
   "node_modules/@sveltejs/kit/src/runtime/app/server/remote/index.js": {
     "file": "remote-entry.js",
@@ -146,7 +122,7 @@
     "isEntry": true,
     "imports": [
       "_shared.js",
-      "_false.js",
+      "_vendor.js",
       "_environment.js"
     ]
   },
@@ -156,11 +132,10 @@
     "src": "node_modules/@sveltejs/kit/src/runtime/components/svelte-5/error.svelte",
     "isEntry": true,
     "imports": [
-      "_index2.js",
+      "_vendor.js",
       "_state.svelte.js",
       "_exports.js",
-      "_utils.js",
-      "_index.js"
+      "_utils2.js"
     ]
   },
   "node_modules/@sveltejs/kit/src/runtime/server/index.js": {
@@ -169,11 +144,10 @@
     "src": "node_modules/@sveltejs/kit/src/runtime/server/index.js",
     "isEntry": true,
     "imports": [
-      "_false.js",
+      "_vendor.js",
       "_environment.js",
       "_exports.js",
-      "_utils.js",
-      "_index.js",
+      "_utils2.js",
       "_internal.js",
       "_shared.js"
     ]
@@ -184,16 +158,14 @@
     "src": "src/routes/+layout.svelte",
     "isEntry": true,
     "imports": [
-      "_index2.js",
-      "_AnimatedTransition.js",
+      "_vendor.js",
       "_exports.js",
-      "_utils.js",
+      "_utils2.js",
       "_state.svelte.js",
       "_auth.js",
-      "_client.js",
+      "_api.js",
       "_auth-guard.js",
-      "_index.js",
-      "_utils2.js",
+      "_AnimatedTransition.js",
       "_LoadingSpinner.js"
     ],
     "css": [
@@ -207,12 +179,11 @@
     "src": "src/routes/+page.svelte",
     "isEntry": true,
     "imports": [
-      "_index2.js",
-      "_AnimatedTransition.js",
+      "_vendor.js",
       "_StaggeredList.js",
-      "_client.js",
-      "_utils2.js",
-      "_LoadingSpinner.js"
+      "_api.js",
+      "_LoadingSpinner.js",
+      "_AnimatedTransition.js"
     ],
     "css": [
       "_app/immutable/assets/_page.D-RB56QC.css"
@@ -233,12 +204,11 @@
     "src": "src/routes/admin/+page.svelte",
     "isEntry": true,
     "imports": [
-      "_index2.js",
-      "_AnimatedTransition.js",
+      "_vendor.js",
       "_auth.js",
       "_StaggeredList.js",
-      "_client.js",
-      "_utils2.js"
+      "_api.js",
+      "_AnimatedTransition.js"
     ],
     "css": [
       "_app/immutable/assets/_page.BZkMFYum.css",
@@ -260,14 +230,29 @@
     "src": "src/routes/login/+page.svelte",
     "isEntry": true,
     "imports": [
-      "_index2.js",
+      "_vendor.js",
       "_exports.js",
-      "_utils.js",
+      "_utils2.js",
       "_state.svelte.js",
       "_auth.js"
     ],
     "css": [
       "_app/immutable/assets/_page.C8CwgfNd.css"
+    ]
+  },
+  "src/routes/offline/+page.svelte": {
+    "file": "entries/pages/offline/_page.svelte.js",
+    "name": "entries/pages/offline/_page.svelte",
+    "src": "src/routes/offline/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_vendor.js",
+      "_exports.js",
+      "_utils2.js",
+      "_state.svelte.js"
+    ],
+    "css": [
+      "_app/immutable/assets/_page.BoG9c_7g.css"
     ]
   }
 }

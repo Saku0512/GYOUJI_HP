@@ -61,7 +61,7 @@ async function analyzeBundleSize() {
   await runCommand('npm run build', '本番ビルド');
   
   // ビルド結果のディレクトリを確認
-  const buildDir = join(projectRoot, 'build');
+  const buildDir = join(projectRoot, '.svelte-kit/output/client');
   if (!existsSync(buildDir)) {
     throw new Error('ビルドディレクトリが見つかりません');
   }
@@ -200,7 +200,67 @@ async function runLighthouseTest() {
   return null;
 }
 
-async function generatePerformanceReport(bundleAnalysis, lighthouseReport) {
+async function analyzeImageOptimization() {
+  colorLog('cyan', '\n🖼️ 画像最適化分析を開始...');
+  
+  const buildDir = join(projectRoot, '.svelte-kit/output/client');
+  const imageStats = {
+    totalImages: 0,
+    totalSize: 0,
+    webpImages: 0,
+    largeImages: 0,
+    unoptimizedImages: []
+  };
+
+  try {
+    // 画像ファイルを検索
+    const imageFiles = execSync(`find "${buildDir}" -type f \\( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" -o -name "*.gif" -o -name "*.webp" -o -name "*.svg" \\)`, { encoding: 'utf8' })
+      .split('\n')
+      .filter(Boolean);
+
+    for (const file of imageFiles) {
+      const stats = execSync(`stat -c%s "${file}"`, { encoding: 'utf8' }).trim();
+      const size = parseInt(stats);
+      const name = file.split('/').pop();
+      
+      imageStats.totalImages++;
+      imageStats.totalSize += size;
+      
+      if (name.includes('.webp')) {
+        imageStats.webpImages++;
+      }
+      
+      if (size > 100 * 1024) { // 100KB以上
+        imageStats.largeImages++;
+        imageStats.unoptimizedImages.push({
+          name,
+          size,
+          sizeFormatted: formatBytes(size)
+        });
+      }
+    }
+    
+    colorLog('bright', '\n📊 画像最適化分析結果:');
+    colorLog('cyan', `総画像数: ${imageStats.totalImages}`);
+    colorLog('cyan', `総サイズ: ${formatBytes(imageStats.totalSize)}`);
+    colorLog('cyan', `WebP画像: ${imageStats.webpImages}/${imageStats.totalImages}`);
+    colorLog('cyan', `大きな画像 (100KB以上): ${imageStats.largeImages}`);
+    
+    if (imageStats.unoptimizedImages.length > 0) {
+      colorLog('yellow', '\n⚠️ 最適化が推奨される画像:');
+      imageStats.unoptimizedImages.slice(0, 5).forEach(img => {
+        console.log(`  - ${img.name}: ${img.sizeFormatted}`);
+      });
+    }
+    
+  } catch (error) {
+    colorLog('yellow', '⚠️ 画像分析をスキップしました');
+  }
+
+  return imageStats;
+}
+
+async function generatePerformanceReport(bundleAnalysis, lighthouseReport, imageAnalysis) {
   colorLog('cyan', '\n📝 パフォーマンスレポートを生成中...');
   
   const report = {
@@ -211,6 +271,7 @@ async function generatePerformanceReport(bundleAnalysis, lighthouseReport) {
       chunks: bundleAnalysis.chunks.length,
       largeChunks: bundleAnalysis.chunks.filter(chunk => chunk.size > 500 * 1024).length
     },
+    images: imageAnalysis,
     lighthouse: null
   };
 
@@ -273,11 +334,14 @@ async function main() {
     // バンドルサイズ分析
     const bundleAnalysis = await analyzeBundleSize();
     
+    // 画像最適化分析
+    const imageAnalysis = await analyzeImageOptimization();
+    
     // Lighthouseテスト
     const lighthouseReport = await runLighthouseTest();
     
     // レポート生成
-    await generatePerformanceReport(bundleAnalysis, lighthouseReport);
+    await generatePerformanceReport(bundleAnalysis, lighthouseReport, imageAnalysis);
     
     colorLog('green', '\n🎉 パフォーマンステストが完了しました！');
     

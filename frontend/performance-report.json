@@ -1,0 +1,17 @@
+{
+  "timestamp": "2025-09-07T13:34:56.242Z",
+  "bundle": {
+    "totalSize": 151400,
+    "totalSizeFormatted": "147.85 KB",
+    "chunks": 15,
+    "largeChunks": 0
+  },
+  "images": {
+    "totalImages": 0,
+    "totalSize": 0,
+    "webpImages": 0,
+    "largeImages": 0,
+    "unoptimizedImages": []
+  },
+  "lighthouse": null
+}
