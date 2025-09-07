@@ -95,31 +95,83 @@ services:
       - web
       - backend
 
+  # フロントエンドサービス（SvelteKit + Nginx）
   frontend:
-    build: ./frontend
-    container_name: gyouji-hp-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NODE_ENV: production
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${VCS_REF:-}
+    container_name: tournament-frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    environment:
+      # 本番環境用環境変数
+      NODE_ENV: production
+      VITE_API_BASE_URL: /api
+      VITE_APP_TITLE: Tournament Management System
+      VITE_ENABLE_POLLING: "true"
+      VITE_POLLING_INTERVAL: "30000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # セキュリティ設定
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /var/cache/nginx:noexec,nosuid,size=50m
+      - /var/run:noexec,nosuid,size=10m
+    # リソース制限
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
     labels:
       - "traefik.enable=true"
-
-      # 1. HTTP用のルーターを定義
+      
+      # HTTP用のルーター（HTTPSリダイレクト）
       - "traefik.http.routers.frontend-http.rule=Host(`nitsche-gyouji.com`)"
       - "traefik.http.routers.frontend-http.entrypoints=web"
-
-      # 2. HTTPからHTTPSへリダイレクトするミドルウェアを定義・適用
-      - "traefik.http.routers.frontend-http.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-
-      # 3. 既存のHTTPS用ルーター（名前をわかりやすく変更）
+      - "traefik.http.routers.frontend-http.middlewares=redirect-to-https,security-headers"
+      
+      # HTTPS用のルーター
       - "traefik.http.routers.frontend-https.rule=Host(`nitsche-gyouji.com`)"
       - "traefik.http.routers.frontend-https.entrypoints=websecure"
       - "traefik.http.routers.frontend-https.tls.certresolver=myresolver"
-
-      # サービス設定（変更なし）
+      - "traefik.http.routers.frontend-https.middlewares=security-headers,compression"
+      
+      # ミドルウェア設定
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+      
+      # セキュリティヘッダー
+      - "traefik.http.middlewares.security-headers.headers.frameDeny=true"
+      - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.security-headers.headers.browserXssFilter=true"
+      - "traefik.http.middlewares.security-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
+      - "traefik.http.middlewares.security-headers.headers.customRequestHeaders.X-Forwarded-Proto=https"
+      
+      # 圧縮設定
+      - "traefik.http.middlewares.compression.compress=true"
+      
+      # サービス設定
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
-      # --- ↑ここまで追加・変更↑ ---
+      - "traefik.http.services.frontend.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.frontend.loadbalancer.healthcheck.interval=30s"
     networks:
       - web
 
