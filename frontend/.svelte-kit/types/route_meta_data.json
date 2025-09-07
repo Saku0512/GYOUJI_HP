@@ -1,5 +1,7 @@
 {
 	"/": [],
 	"/admin": [],
-	"/login": []
+	"/login": [
+		"src/routes/login/+page.js"
+	]
 }

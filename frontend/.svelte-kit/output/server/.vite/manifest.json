@@ -24,6 +24,19 @@
       "_app/immutable/assets/LoadingSpinner.BxzunYK5.css"
     ]
   },
+  "_auth.js": {
+    "file": "chunks/auth.js",
+    "name": "auth",
+    "imports": [
+      "_index.js",
+      "_client.js",
+      "_storage.js"
+    ]
+  },
+  "_client.js": {
+    "file": "chunks/client.js",
+    "name": "client"
+  },
   "_environment.js": {
     "file": "chunks/environment.js",
     "name": "environment"
@@ -71,6 +84,10 @@
     "imports": [
       "_index2.js"
     ]
+  },
+  "_storage.js": {
+    "file": "chunks/storage.js",
+    "name": "storage"
   },
   "_utils.js": {
     "file": "chunks/utils.js",
@@ -125,7 +142,7 @@
       "_exports.js",
       "_utils.js",
       "_state.svelte.js",
-      "_index.js",
+      "_auth.js",
       "_LoadingSpinner.js"
     ],
     "css": [
@@ -140,6 +157,7 @@
     "imports": [
       "_index2.js",
       "_index.js",
+      "_client.js",
       "_LoadingSpinner.js"
     ],
     "css": [
@@ -158,16 +176,29 @@
       "_app/immutable/assets/_page.hoyyCCFb.css"
     ]
   },
+  "src/routes/login/+page.js": {
+    "file": "entries/pages/login/_page.js",
+    "name": "entries/pages/login/_page",
+    "src": "src/routes/login/+page.js",
+    "isEntry": true,
+    "imports": [
+      "_storage.js"
+    ]
+  },
   "src/routes/login/+page.svelte": {
     "file": "entries/pages/login/_page.svelte.js",
     "name": "entries/pages/login/_page.svelte",
     "src": "src/routes/login/+page.svelte",
     "isEntry": true,
     "imports": [
-      "_index2.js"
+      "_index2.js",
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js",
+      "_auth.js"
     ],
     "css": [
-      "_app/immutable/assets/_page.B0IM26vx.css"
+      "_app/immutable/assets/_page.-o2-IrCg.css"
     ]
   }
 }

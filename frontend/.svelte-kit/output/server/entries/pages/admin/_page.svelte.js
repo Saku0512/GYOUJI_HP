@@ -1,4 +1,4 @@
-import { T as head } from "../../../chunks/index2.js";
+import { S as head } from "../../../chunks/index2.js";
 function _page($$payload) {
   head($$payload, ($$payload2) => {
     $$payload2.title = `<title>Admin Dashboard - Tournament Management System</title>`;

@@ -1,6 +1,7 @@
-import { R as current_component, E as fallback, F as attr_class, S as clsx, G as escape_html, I as bind_props, B as pop, z as push, M as ensure_array_like, N as attr, J as stringify, K as store_get, T as head, P as unsubscribe_stores } from "../../chunks/index2.js";
+import { Q as current_component, E as fallback, F as attr_class, R as clsx, G as escape_html, I as bind_props, B as pop, z as push, M as ensure_array_like, N as attr, J as stringify, K as store_get, S as head, P as unsubscribe_stores } from "../../chunks/index2.js";
 import { w as writable, g as get } from "../../chunks/index.js";
-import { a as apiClient, L as LoadingSpinner, u as uiStore, b as uiActions } from "../../chunks/LoadingSpinner.js";
+import { a as apiClient } from "../../chunks/client.js";
+import { L as LoadingSpinner, u as uiStore, a as uiActions } from "../../chunks/LoadingSpinner.js";
 function onDestroy(fn) {
   var context = (
     /** @type {Component} */
