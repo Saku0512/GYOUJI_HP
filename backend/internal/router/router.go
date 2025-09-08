@@ -27,6 +27,7 @@ type Handlers struct {
 	MatchHandler      *handler.MatchHandler
 	WebSocketHandler  *handler.WebSocketHandler
 	PollingHandler    *handler.PollingHandler
+	AlertHandler      *handler.AlertHandler
 }
 
 // NewRouter は新しいルーターを作成する
@@ -36,6 +37,7 @@ func NewRouter(
 	matchService service.MatchService,
 	wsHandler *handler.WebSocketHandler,
 	pollingHandler *handler.PollingHandler,
+	alertHandler *handler.AlertHandler,
 ) *Router {
 	// Ginエンジンを作成
 	engine := gin.New()
@@ -47,6 +49,7 @@ func NewRouter(
 		MatchHandler:      handler.NewMatchHandler(matchService),
 		WebSocketHandler:  wsHandler,
 		PollingHandler:    pollingHandler,
+		AlertHandler:      alertHandler,
 	}
 
 	router := &Router{
@@ -197,6 +200,9 @@ func (r *Router) setupProtectedRoutes(api *gin.RouterGroup) {
 	// 試合関連ルート
 	r.setupMatchRoutes(protected, admin, authMiddleware)
 
+	// アラート関連ルート
+	r.setupAlertRoutes(protected, admin, authMiddleware)
+
 	// WebSocket管理ルート（管理者専用）
 	r.setupWebSocketManagementRoutes(admin)
 }
@@ -287,6 +293,39 @@ func (r *Router) setupMatchRoutes(protected *gin.RouterGroup, admin *gin.RouterG
 		adminMatches.PUT("/:id", r.handlers.MatchHandler.UpdateMatch)                      // PUT /admin/matches/{id}
 		adminMatches.DELETE("/:id", r.handlers.MatchHandler.DeleteMatch)                   // DELETE /admin/matches/{id}
 		adminMatches.PUT("/:id/result", r.handlers.MatchHandler.SubmitMatchResult)         // PUT /admin/matches/{id}/result
+	}
+}
+
+// setupAlertRoutes はアラート関連のルートを設定する
+func (r *Router) setupAlertRoutes(protected *gin.RouterGroup, admin *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware) {
+	// 認証が必要なアラート関連ルート（読み取り専用）
+	alerts := protected.Group("/alerts")
+	{
+		// 認証済みユーザーがアクセス可能 - RESTful設計に従った統一パス構造
+		alerts.GET("", r.handlers.AlertHandler.GetAlerts)                                  // GET /alerts
+		alerts.GET("/active", r.handlers.AlertHandler.GetActiveAlerts)                     // GET /alerts/active
+		alerts.GET("/stats", r.handlers.AlertHandler.GetAlertStats)                        // GET /alerts/stats
+		alerts.GET("/:id", r.handlers.AlertHandler.GetAlert)                               // GET /alerts/{id}
+	}
+
+	// 管理者専用アラート関連ルート（管理・操作）
+	adminAlerts := admin.Group("/alerts")
+	{
+		adminAlerts.POST("/:id/silence", r.handlers.AlertHandler.SilenceAlert)             // POST /admin/alerts/{id}/silence
+		adminAlerts.POST("/:id/resolve", r.handlers.AlertHandler.ResolveAlert)            // POST /admin/alerts/{id}/resolve
+		
+		// アラートルール管理
+		adminAlerts.GET("/rules", r.handlers.AlertHandler.GetAlertRules)                   // GET /admin/alerts/rules
+		adminAlerts.GET("/rules/:id", r.handlers.AlertHandler.GetAlertRule)               // GET /admin/alerts/rules/{id}
+		adminAlerts.POST("/rules", r.handlers.AlertHandler.CreateAlertRule)               // POST /admin/alerts/rules
+		adminAlerts.PUT("/rules/:id", r.handlers.AlertHandler.UpdateAlertRule)            // PUT /admin/alerts/rules/{id}
+		adminAlerts.DELETE("/rules/:id", r.handlers.AlertHandler.DeleteAlertRule)         // DELETE /admin/alerts/rules/{id}
+	}
+
+	// ヘルス関連ルート（認証済みユーザーがアクセス可能）
+	health := protected.Group("/health")
+	{
+		health.GET("/status", r.handlers.AlertHandler.GetHealthStatus)                     // GET /health/status
 	}
 }
 

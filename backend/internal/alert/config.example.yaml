@@ -1,0 +1,171 @@
+# アラートシステム設定例
+alert_system:
+  # アラートマネージャー設定
+  evaluation_interval: "30s"  # アラートルール評価間隔
+  
+  # ヘルスモニター設定
+  health_check_interval: "30s"  # ヘルスチェック間隔
+  enable_health_monitor: true   # ヘルスモニター有効化
+  
+  # 通知設定
+  enable_notifications: true    # 通知機能有効化
+  notifier_types:              # 使用する通知機能
+    - "log"
+    - "webhook"
+    - "slack"
+    - "email"
+  
+  # ストレージ設定
+  use_memory_store: true       # メモリストア使用（本番環境ではfalse推奨）
+  database_url: ""             # データベースURL（メモリストア無効時）
+  
+  # 自動復旧設定
+  enable_auto_recovery: true   # 自動復旧機能有効化
+
+# 通知設定（環境変数でも設定可能）
+notifications:
+  # Webhook通知
+  webhook:
+    url: "https://your-webhook-endpoint.com/alerts"
+    timeout: "10s"
+    headers:
+      Authorization: "Bearer your-token"
+      Content-Type: "application/json"
+  
+  # Slack通知
+  slack:
+    webhook_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+    channel: "#alerts"
+    username: "Alert Bot"
+  
+  # メール通知
+  email:
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    username: "your-email@gmail.com"
+    password: "your-app-password"
+    from: "alerts@yourcompany.com"
+    to:
+      - "admin@yourcompany.com"
+      - "devops@yourcompany.com"
+
+# アラート閾値設定
+alert_thresholds:
+  database:
+    warning_threshold: 1000   # 1秒（ミリ秒）
+    critical_threshold: 5000  # 5秒（ミリ秒）
+    duration: "1m"
+    enabled: true
+  
+  memory:
+    warning_threshold: 1024   # 1GB（MB）
+    critical_threshold: 2048  # 2GB（MB）
+    duration: "5m"
+    enabled: true
+  
+  cpu:
+    warning_threshold: 80     # 80%
+    critical_threshold: 95    # 95%
+    duration: "2m"
+    enabled: true
+  
+  goroutines:
+    warning_threshold: 1000   # 1000個
+    critical_threshold: 10000 # 10000個
+    duration: "1m"
+    enabled: true
+  
+  disk:
+    warning_threshold: 80     # 80%
+    critical_threshold: 95    # 95%
+    duration: "10m"
+    enabled: true
+  
+  http_endpoints:
+    warning_threshold: 1      # 1つ以上のエンドポイントに問題
+    critical_threshold: 0     # 全てのエンドポイントに問題
+    duration: "1m"
+    enabled: true
+
+# デフォルトアラートルール
+default_alert_rules:
+  - name: "高エラー率"
+    type: "high_error_rate"
+    severity: "warning"
+    description: "HTTPエラー率が高い状態が続いています"
+    query: "http_error_rate"
+    threshold: 5.0
+    operator: "gt"
+    duration: "5m"
+    enabled: true
+    labels:
+      category: "http"
+      default: "true"
+    annotations:
+      summary: "HTTPエラー率が閾値を超えています"
+      description: "過去5分間のHTTPエラー率が5%を超えています"
+  
+  - name: "レスポンス時間遅延"
+    type: "slow_response"
+    severity: "warning"
+    description: "APIレスポンス時間が遅い状態が続いています"
+    query: "http_response_time_p95"
+    threshold: 2.0
+    operator: "gt"
+    duration: "3m"
+    enabled: true
+    labels:
+      category: "performance"
+      default: "true"
+    annotations:
+      summary: "APIレスポンス時間が遅延しています"
+      description: "95パーセンタイルのレスポンス時間が2秒を超えています"
+  
+  - name: "データベース接続エラー"
+    type: "db_connection_error"
+    severity: "critical"
+    description: "データベース接続でエラーが発生しています"
+    query: "db_connection_errors"
+    threshold: 1.0
+    operator: "gt"
+    duration: "1m"
+    enabled: true
+    labels:
+      category: "database"
+      default: "true"
+    annotations:
+      summary: "データベース接続エラーが発生しています"
+      description: "データベースへの接続でエラーが発生しています"
+  
+  - name: "高メモリ使用量"
+    type: "high_memory"
+    severity: "warning"
+    description: "メモリ使用量が高い状態が続いています"
+    query: "memory_usage_percent"
+    threshold: 80.0
+    operator: "gt"
+    duration: "5m"
+    enabled: true
+    labels:
+      category: "system"
+      default: "true"
+    annotations:
+      summary: "メモリ使用量が高くなっています"
+      description: "システムのメモリ使用量が80%を超えています"
+
+# 自動復旧アクション設定
+recovery_actions:
+  database:
+    enabled: true
+    timeout: "30s"
+    max_retries: 3
+    retry_interval: "5s"
+  
+  memory:
+    enabled: false  # メモリ関連の自動復旧は危険なため無効
+  
+  http_endpoints:
+    enabled: true
+    timeout: "10s"
+    max_retries: 2
+    retry_interval: "3s"
