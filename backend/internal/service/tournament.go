@@ -357,8 +357,8 @@ func (s *tournamentService) GetTournamentProgress(sport string) (*TournamentProg
 func isPowerOfTwo(n int) bool {
 	return n > 0 && (n&(n-1)) == 0
 }
-// Se
-tNotificationService sets the notification service for real-time updates
+
+// SetNotificationService sets the notification service for real-time updates
 func (s *tournamentService) SetNotificationService(notificationService *NotificationService) {
 	s.notificationService = notificationService
 }

@@ -255,8 +255,9 @@ func (s *matchService) GetMatchStatistics(tournamentID int) (*MatchStatistics, e
 	}
 	
 	return stats, nil
-}//
- SetNotificationService sets the notification service for real-time updates
+}
+
+// SetNotificationService sets the notification service for real-time updates
 func (s *matchService) SetNotificationService(notificationService *NotificationService) {
 	s.notificationService = notificationService
 }

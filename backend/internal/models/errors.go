@@ -76,6 +76,25 @@ const (
 	ErrorSystemUnknownError  = "SYSTEM_UNKNOWN_ERROR"  // 不明なエラー
 )
 
+// レート制限関連エラーコード
+const (
+	// RATE_LIMIT_* - レート制限関連エラー
+	ErrorRateLimitEndpointExceeded = "RATE_LIMIT_ENDPOINT_EXCEEDED" // エンドポイント制限超過
+	ErrorRateLimitIPExceeded       = "RATE_LIMIT_IP_EXCEEDED"       // IP制限超過
+	ErrorRateLimitUserExceeded     = "RATE_LIMIT_USER_EXCEEDED"     // ユーザー制限超過
+)
+
+// 入力サニタイゼーション関連エラーコード
+const (
+	// INPUT_* - 入力サニタイゼーション関連エラー
+	ErrorInputSanitizationError = "INPUT_SANITIZATION_ERROR" // 入力サニタイゼーションエラー
+	ErrorInputXSSDetected       = "INPUT_XSS_DETECTED"       // XSS攻撃検出
+	ErrorInputSQLInjectionDetected = "INPUT_SQL_INJECTION_DETECTED" // SQLインジェクション検出
+	ErrorInputMaliciousContent  = "INPUT_MALICIOUS_CONTENT"  // 悪意のあるコンテンツ検出
+	ErrorInputTooLarge          = "INPUT_TOO_LARGE"          // 入力サイズ超過
+	ErrorInputInvalidFormat     = "INPUT_INVALID_FORMAT"     // 無効な入力形式
+)
+
 // 事前定義されたAPIエラー
 
 // 認証関連エラー
@@ -115,4 +134,21 @@ var (
 	ErrNetworkError  = NewAPIError(ErrorSystemNetworkError, "ネットワークエラーが発生しました", 500)
 	ErrTimeout       = NewAPIError(ErrorSystemTimeout, "処理がタイムアウトしました", 500)
 	ErrUnknownError  = NewAPIError(ErrorSystemUnknownError, "予期しないエラーが発生しました", 500)
+)
+
+// レート制限関連エラー
+var (
+	ErrRateLimitEndpointExceeded = NewAPIError(ErrorRateLimitEndpointExceeded, "エンドポイントのレート制限に達しました", 429)
+	ErrRateLimitIPExceeded       = NewAPIError(ErrorRateLimitIPExceeded, "IPアドレスのレート制限に達しました", 429)
+	ErrRateLimitUserExceeded     = NewAPIError(ErrorRateLimitUserExceeded, "ユーザーのレート制限に達しました", 429)
+)
+
+// 入力サニタイゼーション関連エラー
+var (
+	ErrInputSanitizationError      = NewAPIError(ErrorInputSanitizationError, "入力データの処理中にエラーが発生しました", 400)
+	ErrInputXSSDetected            = NewAPIError(ErrorInputXSSDetected, "XSS攻撃の可能性がある入力が検出されました", 400)
+	ErrInputSQLInjectionDetected   = NewAPIError(ErrorInputSQLInjectionDetected, "SQLインジェクション攻撃の可能性がある入力が検出されました", 400)
+	ErrInputMaliciousContent       = NewAPIError(ErrorInputMaliciousContent, "悪意のあるコンテンツが検出されました", 400)
+	ErrInputTooLarge               = NewAPIError(ErrorInputTooLarge, "入力データのサイズが制限を超えています", 413)
+	ErrInputInvalidFormat          = NewAPIError(ErrorInputInvalidFormat, "入力データの形式が無効です", 400)
 )
