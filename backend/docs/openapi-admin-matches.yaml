@@ -1,0 +1,275 @@
+# 管理者専用試合エンドポイント（openapi.yamlに追加する部分）
+
+  # 管理者専用試合エンドポイント
+  /admin/matches:
+    post:
+      tags:
+        - admin
+        - matches
+      summary: 試合作成
+      description: 新しい試合を作成する（管理者のみ）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMatchRequest'
+            examples:
+              volleyball_match:
+                summary: バレーボール試合
+                value:
+                  tournament_id: 1
+                  round: "quarterfinal"
+                  team1: "チームA"
+                  team2: "チームB"
+                  scheduled_at: "2024-01-01T10:00:00Z"
+              table_tennis_match:
+                summary: 卓球試合
+                value:
+                  tournament_id: 2
+                  round: "1st_round"
+                  team1: "チームC"
+                  team2: "チームD"
+                  scheduled_at: "2024-01-01T11:00:00Z"
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 競合エラー（既に存在）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/matches/{id}:
+    put:
+      tags:
+        - admin
+        - matches
+      summary: 試合更新
+      description: 指定されたIDの試合を更新する（管理者のみ）
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MatchIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMatchRequest'
+            examples:
+              update_teams:
+                summary: チーム名変更
+                value:
+                  team1: "新チームA"
+                  team2: "新チームB"
+              update_schedule:
+                summary: 予定時刻変更
+                value:
+                  scheduled_at: "2024-01-01T15:00:00Z"
+              update_status:
+                summary: ステータス変更
+                value:
+                  status: "in_progress"
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 試合が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 競合エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - admin
+        - matches
+      summary: 試合削除
+      description: 指定されたIDの試合を削除する（管理者のみ）
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MatchIdParam'
+      responses:
+        '200':
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 試合が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 競合エラー（削除不可）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/matches/{id}/result:
+    put:
+      tags:
+        - admin
+        - matches
+      summary: 試合結果提出
+      description: 指定された試合の結果を提出する（管理者のみ）
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MatchIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitMatchResultRequest'
+            examples:
+              volleyball_result:
+                summary: バレーボール結果
+                value:
+                  score1: 3
+                  score2: 1
+                  winner: "チームA"
+              table_tennis_result:
+                summary: 卓球結果
+                value:
+                  score1: 2
+                  score2: 3
+                  winner: "チームB"
+      responses:
+        '200':
+          description: 提出成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 試合が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: ビジネスロジックエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

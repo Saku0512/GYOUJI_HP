@@ -1,0 +1,2044 @@
+openapi: 3.0.3
+info:
+  title: Tournament Management API
+  description: |
+    統一されたトーナメント管理システムAPI
+    
+    このAPIは、バレーボール、卓球、サッカーのトーナメント管理を行うための統一されたインターフェースを提供します。
+    
+    ## 主要機能
+    - ユーザー認証・認可（JWT）
+    - トーナメント作成・管理
+    - 試合結果管理
+    - リアルタイム更新（WebSocket）
+    - ポーリング機能
+    
+    ## API設計原則
+    - RESTful設計
+    - 統一されたレスポンス形式
+    - 適切なHTTPステータスコード
+    - ISO 8601日時形式
+    - 包括的なエラーハンドリング
+    
+    ## 認証
+    JWT（JSON Web Token）を使用した認証システム。
+    認証が必要なエンドポイントには`Authorization: Bearer <token>`ヘッダーが必要です。
+    
+    ## バージョニング
+    - 現在のバージョン: v1 (`/api/v1/`)
+    - 旧バージョン: legacy (`/api/`) - 廃止予定
+    
+  version: 1.0.0
+  contact:
+    name: Tournament API Support
+    email: support@tournament.example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: 開発環境
+  - url: https://api.tournament.example.com/api/v1
+    description: 本番環境
+  - url: http://localhost:8080/api
+    description: 旧API（廃止予定）
+
+tags:
+  - name: auth
+    description: 認証・認可関連
+  - name: tournaments
+    description: トーナメント管理
+  - name: matches
+    description: 試合管理
+  - name: public
+    description: 公開エンドポイント（認証不要）
+  - name: admin
+    description: 管理者専用エンドポイント
+  - name: websocket
+    description: WebSocket関連
+  - name: polling
+    description: ポーリング関連
+  - name: health
+    description: ヘルスチェック
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT認証トークン
+
+  parameters:
+    SportParam:
+      name: sport
+      in: path
+      required: true
+      description: スポーツ種目
+      schema:
+        $ref: '#/components/schemas/SportType'
+    
+    TournamentIdParam:
+      name: tournament_id
+      in: path
+      required: true
+      description: トーナメントID
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
+    
+    MatchIdParam:
+      name: id
+      in: path
+      required: true
+      description: 試合ID
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
+    
+    PageParam:
+      name: page
+      in: query
+      description: ページ番号
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+        example: 1
+    
+    PageSizeParam:
+      name: page_size
+      in: query
+      description: ページサイズ
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+        example: 20
+
+  headers:
+    X-Request-ID:
+      description: リクエスト追跡用ID
+      schema:
+        type: string
+        example: "req_123456789"
+    
+    X-API-Deprecated:
+      description: API廃止予定の警告
+      schema:
+        type: string
+        example: "true" 
+ schemas:
+    # 基本型定義
+    SportType:
+      type: string
+      enum:
+        - volleyball
+        - table_tennis
+        - soccer
+      description: スポーツ種目
+      example: volleyball
+    
+    TournamentFormat:
+      type: string
+      enum:
+        - standard
+        - rainy
+      description: トーナメント形式
+      example: standard
+    
+    TournamentStatus:
+      type: string
+      enum:
+        - registration
+        - active
+        - completed
+        - cancelled
+      description: トーナメントステータス
+      example: active
+    
+    MatchStatus:
+      type: string
+      enum:
+        - pending
+        - in_progress
+        - completed
+        - cancelled
+      description: 試合ステータス
+      example: pending
+    
+    RoundType:
+      type: string
+      enum:
+        - 1st_round
+        - 2nd_round
+        - 3rd_round
+        - 4th_round
+        - quarterfinal
+        - semifinal
+        - third_place
+        - final
+        - loser_bracket
+      description: ラウンド種別
+      example: quarterfinal
+    
+    DateTime:
+      type: string
+      format: date-time
+      description: ISO 8601形式の日時
+      example: "2024-01-01T12:00:00Z"
+    
+    ErrorCode:
+      type: string
+      enum:
+        - AUTH_INVALID_CREDENTIALS
+        - AUTH_TOKEN_EXPIRED
+        - AUTH_TOKEN_INVALID
+        - AUTH_UNAUTHORIZED
+        - AUTH_FORBIDDEN
+        - VALIDATION_REQUIRED_FIELD
+        - VALIDATION_INVALID_FORMAT
+        - VALIDATION_OUT_OF_RANGE
+        - VALIDATION_DUPLICATE_VALUE
+        - RESOURCE_NOT_FOUND
+        - RESOURCE_ALREADY_EXISTS
+        - RESOURCE_CONFLICT
+        - BUSINESS_TOURNAMENT_COMPLETED
+        - BUSINESS_MATCH_ALREADY_COMPLETED
+        - BUSINESS_INVALID_MATCH_RESULT
+        - SYSTEM_DATABASE_ERROR
+        - SYSTEM_NETWORK_ERROR
+        - SYSTEM_TIMEOUT
+        - SYSTEM_UNKNOWN_ERROR
+      description: エラーコード
+      example: VALIDATION_REQUIRED_FIELD    # 基底レスポ
+ンス構造体
+    BaseResponse:
+      type: object
+      required:
+        - success
+        - message
+        - code
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          description: 成功フラグ
+          example: true
+        message:
+          type: string
+          description: レスポンスメッセージ
+          example: "操作が成功しました"
+        code:
+          type: integer
+          description: HTTPステータスコード
+          example: 200
+        timestamp:
+          $ref: '#/components/schemas/DateTime'
+        request_id:
+          type: string
+          description: リクエスト追跡用ID
+          example: "req_123456789"
+    
+    # エラーレスポンス
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - error
+          properties:
+            success:
+              type: boolean
+              example: false
+            error:
+              $ref: '#/components/schemas/ErrorCode'
+    
+    # バリデーションエラーレスポンス
+    ValidationErrorDetail:
+      type: object
+      required:
+        - field
+        - message
+        - value
+      properties:
+        field:
+          type: string
+          description: エラーが発生したフィールド名
+          example: "username"
+        message:
+          type: string
+          description: エラーメッセージ
+          example: "ユーザー名は必須です"
+        value:
+          type: string
+          description: 入力された値
+          example: ""
+    
+    ValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - error
+            - details
+          properties:
+            success:
+              type: boolean
+              example: false
+            error:
+              type: string
+              example: "VALIDATION_ERROR"
+            details:
+              type: array
+              items:
+                $ref: '#/components/schemas/ValidationErrorDetail'
+    
+    # ページネーション
+    PaginationResponse:
+      type: object
+      required:
+        - page
+        - page_size
+        - total_items
+        - total_pages
+        - has_next
+        - has_prev
+      properties:
+        page:
+          type: integer
+          description: 現在のページ番号
+          example: 1
+        page_size:
+          type: integer
+          description: ページサイズ
+          example: 20
+        total_items:
+          type: integer
+          description: 総アイテム数
+          example: 100
+        total_pages:
+          type: integer
+          description: 総ページ数
+          example: 5
+        has_next:
+          type: boolean
+          description: 次のページが存在するか
+          example: true
+        has_prev:
+          type: boolean
+          description: 前のページが存在するか
+          example: false    # 
+データモデル
+    Tournament:
+      type: object
+      required:
+        - id
+        - sport
+        - format
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          description: トーナメントID
+          example: 1
+        sport:
+          $ref: '#/components/schemas/SportType'
+        format:
+          $ref: '#/components/schemas/TournamentFormat'
+        status:
+          $ref: '#/components/schemas/TournamentStatus'
+        created_at:
+          $ref: '#/components/schemas/DateTime'
+        updated_at:
+          $ref: '#/components/schemas/DateTime'
+    
+    Match:
+      type: object
+      required:
+        - id
+        - tournament_id
+        - round
+        - team1
+        - team2
+        - status
+        - scheduled_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          description: 試合ID
+          example: 1
+        tournament_id:
+          type: integer
+          description: トーナメントID
+          example: 1
+        round:
+          $ref: '#/components/schemas/RoundType'
+        team1:
+          type: string
+          description: チーム1
+          example: "チームA"
+        team2:
+          type: string
+          description: チーム2
+          example: "チームB"
+        score1:
+          type: integer
+          nullable: true
+          description: チーム1のスコア
+          example: 3
+        score2:
+          type: integer
+          nullable: true
+          description: チーム2のスコア
+          example: 1
+        winner:
+          type: string
+          nullable: true
+          description: 勝者
+          example: "チームA"
+        status:
+          $ref: '#/components/schemas/MatchStatus'
+        scheduled_at:
+          $ref: '#/components/schemas/DateTime'
+        completed_at:
+          allOf:
+            - $ref: '#/components/schemas/DateTime'
+            - nullable: true
+          description: 完了日時
+        created_at:
+          $ref: '#/components/schemas/DateTime'
+        updated_at:
+          $ref: '#/components/schemas/DateTime'
+    
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - role
+        - created_at
+      properties:
+        id:
+          type: integer
+          description: ユーザーID
+          example: 1
+        username:
+          type: string
+          description: ユーザー名
+          example: "admin"
+        role:
+          type: string
+          description: ユーザーロール
+          example: "admin"
+        created_at:
+          $ref: '#/components/schemas/DateTime' 
+   # リクエストスキーマ
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: ユーザー名
+          example: "admin"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+          description: パスワード
+          example: "password"
+    
+    RefreshTokenRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: 既存のJWTトークン
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    
+    CreateTournamentRequest:
+      type: object
+      required:
+        - sport
+        - format
+      properties:
+        sport:
+          $ref: '#/components/schemas/SportType'
+        format:
+          $ref: '#/components/schemas/TournamentFormat'
+    
+    UpdateTournamentRequest:
+      type: object
+      properties:
+        format:
+          $ref: '#/components/schemas/TournamentFormat'
+        status:
+          $ref: '#/components/schemas/TournamentStatus'
+    
+    SwitchFormatRequest:
+      type: object
+      required:
+        - format
+      properties:
+        format:
+          $ref: '#/components/schemas/TournamentFormat'
+    
+    CreateMatchRequest:
+      type: object
+      required:
+        - tournament_id
+        - round
+        - team1
+        - team2
+        - scheduled_at
+      properties:
+        tournament_id:
+          type: integer
+          minimum: 1
+          description: トーナメントID
+          example: 1
+        round:
+          $ref: '#/components/schemas/RoundType'
+        team1:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: チーム1
+          example: "チームA"
+        team2:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: チーム2
+          example: "チームB"
+        scheduled_at:
+          $ref: '#/components/schemas/DateTime'
+    
+    UpdateMatchRequest:
+      type: object
+      properties:
+        round:
+          $ref: '#/components/schemas/RoundType'
+        team1:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "チームA"
+        team2:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "チームB"
+        status:
+          $ref: '#/components/schemas/MatchStatus'
+        scheduled_at:
+          $ref: '#/components/schemas/DateTime'
+    
+    SubmitMatchResultRequest:
+      type: object
+      required:
+        - score1
+        - score2
+        - winner
+      properties:
+        score1:
+          type: integer
+          minimum: 0
+          description: チーム1のスコア
+          example: 3
+        score2:
+          type: integer
+          minimum: 0
+          description: チーム2のスコア
+          example: 1
+        winner:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 勝者
+          example: "チームA"  
+  # レスポンススキーマ
+    LoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - token
+                - username
+                - role
+                - expires_at
+              properties:
+                token:
+                  type: string
+                  description: JWTトークン
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                username:
+                  type: string
+                  description: ユーザー名
+                  example: "admin"
+                role:
+                  type: string
+                  description: ユーザーロール
+                  example: "admin"
+                expires_at:
+                  $ref: '#/components/schemas/DateTime'
+    
+    RefreshTokenResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - token
+                - expires_at
+              properties:
+                token:
+                  type: string
+                  description: 新しいJWTトークン
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                expires_at:
+                  $ref: '#/components/schemas/DateTime'
+    
+    UserProfileResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - user_id
+                - username
+                - role
+              properties:
+                user_id:
+                  type: integer
+                  example: 1
+                username:
+                  type: string
+                  example: "admin"
+                role:
+                  type: string
+                  example: "admin"
+    
+    TokenValidationResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - valid
+                - user_id
+                - username
+                - role
+                - expires_at
+              properties:
+                valid:
+                  type: boolean
+                  example: true
+                user_id:
+                  type: integer
+                  example: 1
+                username:
+                  type: string
+                  example: "admin"
+                role:
+                  type: string
+                  example: "admin"
+                expires_at:
+                  $ref: '#/components/schemas/DateTime'
+    
+    TournamentResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/Tournament'
+    
+    TournamentListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+            - count
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Tournament'
+            count:
+              type: integer
+              description: 件数
+              example: 3
+    
+    MatchResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/Match'
+    
+    MatchListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+            - count
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Match'
+            count:
+              type: integer
+              description: 件数
+              example: 10    
+# 複合レスポンススキーマ
+    BracketRound:
+      type: object
+      required:
+        - name
+        - matches
+      properties:
+        name:
+          $ref: '#/components/schemas/RoundType'
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/Match'
+    
+    Bracket:
+      type: object
+      required:
+        - tournament_id
+        - sport
+        - format
+        - rounds
+      properties:
+        tournament_id:
+          type: integer
+          example: 1
+        sport:
+          $ref: '#/components/schemas/SportType'
+        format:
+          $ref: '#/components/schemas/TournamentFormat'
+        rounds:
+          type: array
+          items:
+            $ref: '#/components/schemas/BracketRound'
+    
+    BracketResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/Bracket'
+    
+    TournamentProgress:
+      type: object
+      required:
+        - tournament_id
+        - sport
+        - format
+        - status
+        - total_matches
+        - completed_matches
+        - pending_matches
+        - progress_percent
+        - current_round
+      properties:
+        tournament_id:
+          type: integer
+          example: 1
+        sport:
+          $ref: '#/components/schemas/SportType'
+        format:
+          $ref: '#/components/schemas/TournamentFormat'
+        status:
+          $ref: '#/components/schemas/TournamentStatus'
+        total_matches:
+          type: integer
+          example: 16
+        completed_matches:
+          type: integer
+          example: 8
+        pending_matches:
+          type: integer
+          example: 8
+        progress_percent:
+          type: number
+          format: float
+          example: 50.0
+        current_round:
+          $ref: '#/components/schemas/RoundType'
+    
+    TournamentProgressResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/TournamentProgress'
+    
+    TeamStats:
+      type: object
+      required:
+        - team_name
+        - matches_played
+        - wins
+        - losses
+        - total_score
+        - average_score
+      properties:
+        team_name:
+          type: string
+          example: "チームA"
+        matches_played:
+          type: integer
+          example: 4
+        wins:
+          type: integer
+          example: 3
+        losses:
+          type: integer
+          example: 1
+        total_score:
+          type: integer
+          example: 12
+        average_score:
+          type: number
+          format: float
+          example: 3.0
+    
+    MatchStatistics:
+      type: object
+      required:
+        - tournament_id
+        - total_matches
+        - completed_matches
+        - pending_matches
+        - matches_by_round
+        - completion_rate
+        - average_score
+        - team_stats
+      properties:
+        tournament_id:
+          type: integer
+          example: 1
+        total_matches:
+          type: integer
+          example: 16
+        completed_matches:
+          type: integer
+          example: 8
+        pending_matches:
+          type: integer
+          example: 8
+        matches_by_round:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            "1st_round": 8
+            "quarterfinal": 4
+            "semifinal": 2
+            "final": 1
+        completion_rate:
+          type: number
+          format: float
+          example: 0.5
+        average_score:
+          type: object
+          additionalProperties:
+            type: number
+            format: float
+          example:
+            "team1": 2.5
+            "team2": 1.8
+        team_stats:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/TeamStats'
+    
+    MatchStatisticsResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/MatchStatistics'
+    
+    HealthCheckResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: object
+              required:
+                - status
+                - version
+                - timestamp
+                - services
+              properties:
+                status:
+                  type: string
+                  example: "healthy"
+                version:
+                  type: string
+                  example: "1.0.0"
+                timestamp:
+                  $ref: '#/components/schemas/DateTime'
+                services:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  example:
+                    database: "healthy"
+                    redis: "healthy"
+                    websocket: "healthy"pat
+hs:
+  # ヘルスチェック
+  /health:
+    get:
+      tags:
+        - health
+      summary: ヘルスチェック
+      description: システムの健全性を確認する
+      responses:
+        '200':
+          description: システム正常
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+        '503':
+          description: システム異常
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # 認証エンドポイント
+  /auth/login:
+    post:
+      tags:
+        - auth
+      summary: ユーザーログイン
+      description: |
+        管理者認証情報でログインし、JWTトークンを取得する
+        
+        レート制限: 10回/分
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              admin_login:
+                summary: 管理者ログイン
+                value:
+                  username: "admin"
+                  password: "password"
+      responses:
+        '200':
+          description: ログイン成功
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/X-Request-ID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: レート制限超過
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags:
+        - auth
+      summary: ユーザーログアウト
+      description: |
+        ログアウト処理を行う
+        
+        JWTはステートレスのため、クライアント側でトークンを削除する
+      responses:
+        '200':
+          description: ログアウト成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+
+  /auth/refresh:
+    post:
+      tags:
+        - auth
+      summary: JWTトークンリフレッシュ
+      description: |
+        既存のJWTトークンを使用して新しいトークンを生成する
+        
+        レート制限: 10回/分
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: リフレッシュ成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: レート制限超過
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/validate:
+    get:
+      tags:
+        - auth
+      summary: トークン検証（GET）
+      description: 現在のJWTトークンの有効性を検証する
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 検証成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenValidationResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    post:
+      tags:
+        - auth
+      summary: トークン検証（POST）
+      description: 指定されたJWTトークンの有効性を検証する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: 検証成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenValidationResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/profile:
+    get:
+      tags:
+        - auth
+      summary: ユーザープロフィール取得
+      description: 現在認証されているユーザーの情報を取得する
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: ユーザー情報取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'  # 
+公開トーナメントエンドポイント（認証不要）
+  /public/tournaments:
+    get:
+      tags:
+        - public
+        - tournaments
+      summary: 全トーナメント取得（公開）
+      description: 全てのトーナメントを取得する（認証不要）
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: sport
+          in: query
+          description: スポーツでフィルタ
+          schema:
+            $ref: '#/components/schemas/SportType'
+        - name: status
+          in: query
+          description: ステータスでフィルタ
+          schema:
+            $ref: '#/components/schemas/TournamentStatus'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentListResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /public/tournaments/active:
+    get:
+      tags:
+        - public
+        - tournaments
+      summary: アクティブトーナメント取得（公開）
+      description: アクティブ状態のトーナメントを取得する（認証不要）
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentListResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /public/tournaments/sport/{sport}:
+    get:
+      tags:
+        - public
+        - tournaments
+      summary: スポーツ別トーナメント取得（公開）
+      description: 指定されたスポーツのトーナメントを取得する（認証不要）
+      parameters:
+        - $ref: '#/components/parameters/SportParam'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /public/tournaments/sport/{sport}/bracket:
+    get:
+      tags:
+        - public
+        - tournaments
+      summary: トーナメントブラケット取得（公開）
+      description: 指定されたスポーツのトーナメントブラケットを取得する（認証不要）
+      parameters:
+        - $ref: '#/components/parameters/SportParam'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BracketResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /public/tournaments/sport/{sport}/progress:
+    get:
+      tags:
+        - public
+        - tournaments
+      summary: トーナメント進行状況取得（公開）
+      description: 指定されたスポーツのトーナメント進行状況を取得する（認証不要）
+      parameters:
+        - $ref: '#/components/parameters/SportParam'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentProgressResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'  # 
+公開試合エンドポイント（認証不要）
+  /public/matches/sport/{sport}:
+    get:
+      tags:
+        - public
+        - matches
+      summary: スポーツ別試合取得（公開）
+      description: 指定されたスポーツの試合を取得する（認証不要）
+      parameters:
+        - $ref: '#/components/parameters/SportParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          description: 試合ステータスでフィルタ
+          schema:
+            $ref: '#/components/schemas/MatchStatus'
+        - name: round
+          in: query
+          description: ラウンドでフィルタ
+          schema:
+            $ref: '#/components/schemas/RoundType'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchListResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /public/matches/tournament/{tournament_id}:
+    get:
+      tags:
+        - public
+        - matches
+      summary: トーナメント別試合取得（公開）
+      description: 指定されたトーナメントの試合を取得する（認証不要）
+      parameters:
+        - $ref: '#/components/parameters/TournamentIdParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          description: 試合ステータスでフィルタ
+          schema:
+            $ref: '#/components/schemas/MatchStatus'
+        - name: round
+          in: query
+          description: ラウンドでフィルタ
+          schema:
+            $ref: '#/components/schemas/RoundType'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchListResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /public/matches/tournament/{tournament_id}/next:
+    get:
+      tags:
+        - public
+        - matches
+      summary: 次の試合取得（公開）
+      description: 指定されたトーナメントの次に実施予定の試合を取得する（認証不要）
+      parameters:
+        - $ref: '#/components/parameters/TournamentIdParam'
+        - name: limit
+          in: query
+          description: 取得件数制限
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+            default: 5
+            example: 5
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchListResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'  #
+ 認証が必要なトーナメントエンドポイント
+  /tournaments:
+    get:
+      tags:
+        - tournaments
+      summary: 全トーナメント取得
+      description: 全てのトーナメントを取得する（認証必要）
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: sport
+          in: query
+          description: スポーツでフィルタ
+          schema:
+            $ref: '#/components/schemas/SportType'
+        - name: status
+          in: query
+          description: ステータスでフィルタ
+          schema:
+            $ref: '#/components/schemas/TournamentStatus'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentListResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tournaments/{id}:
+    get:
+      tags:
+        - tournaments
+      summary: ID別トーナメント取得
+      description: 指定されたIDのトーナメントを取得する
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: トーナメントID
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tournaments/sport/{sport}:
+    get:
+      tags:
+        - tournaments
+      summary: スポーツ別トーナメント取得
+      description: 指定されたスポーツのトーナメントを取得する
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SportParam'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tournaments/sport/{sport}/bracket:
+    get:
+      tags:
+        - tournaments
+      summary: トーナメントブラケット取得
+      description: 指定されたスポーツのトーナメントブラケットを取得する
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SportParam'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BracketResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tournaments/sport/{sport}/progress:
+    get:
+      tags:
+        - tournaments
+      summary: トーナメント進行状況取得
+      description: 指定されたスポーツのトーナメント進行状況を取得する
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SportParam'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentProgressResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tournaments/active:
+    get:
+      tags:
+        - tournaments
+      summary: アクティブトーナメント取得
+      description: アクティブ状態のトーナメントを取得する
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentListResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'  
+# 管理者専用トーナメントエンドポイント
+  /admin/tournaments:
+    post:
+      tags:
+        - admin
+        - tournaments
+      summary: トーナメント作成
+      description: 新しいトーナメントを作成する（管理者のみ）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTournamentRequest'
+            examples:
+              volleyball_tournament:
+                summary: バレーボールトーナメント
+                value:
+                  sport: "volleyball"
+                  format: "standard"
+              table_tennis_tournament:
+                summary: 卓球トーナメント
+                value:
+                  sport: "table_tennis"
+                  format: "rainy"
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 競合エラー（既に存在）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/tournaments/{id}:
+    put:
+      tags:
+        - admin
+        - tournaments
+      summary: トーナメント更新
+      description: 指定されたIDのトーナメントを更新する（管理者のみ）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: トーナメントID
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTournamentRequest'
+            examples:
+              update_format:
+                summary: フォーマット変更
+                value:
+                  format: "rainy"
+              update_status:
+                summary: ステータス変更
+                value:
+                  status: "completed"
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 競合エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - admin
+        - tournaments
+      summary: トーナメント削除
+      description: 指定されたIDのトーナメントを削除する（管理者のみ）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: トーナメントID
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      responses:
+        '200':
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 競合エラー（削除不可）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/tournaments/{id}/format:
+    put:
+      tags:
+        - admin
+        - tournaments
+      summary: トーナメント形式切り替え
+      description: 指定されたトーナメントの形式を切り替える（管理者のみ）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: トーナメントID
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwitchFormatRequest'
+            examples:
+              switch_to_rainy:
+                summary: 雨天形式に切り替え
+                value:
+                  format: "rainy"
+              switch_to_standard:
+                summary: 標準形式に切り替え
+                value:
+                  format: "standard"
+      responses:
+        '200':
+          description: 切り替え成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TournamentResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 競合エラー（切り替え不可）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/tournaments/sport/{sport}/complete:
+    put:
+      tags:
+        - admin
+        - tournaments
+      summary: トーナメント完了
+      description: 指定されたスポーツのトーナメントを完了状態にする（管理者のみ）
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SportParam'
+      responses:
+        '200':
+          description: 完了成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 競合エラー（完了不可）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

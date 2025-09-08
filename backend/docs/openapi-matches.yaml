@@ -1,0 +1,298 @@
+# 試合関連エンドポイント（openapi.yamlに追加する部分）
+
+  # 認証が必要な試合エンドポイント
+  /matches:
+    get:
+      tags:
+        - matches
+      summary: 全試合取得
+      description: 全ての試合を取得する（認証必要）
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: sport
+          in: query
+          description: スポーツでフィルタ
+          schema:
+            $ref: '#/components/schemas/SportType'
+        - name: status
+          in: query
+          description: 試合ステータスでフィルタ
+          schema:
+            $ref: '#/components/schemas/MatchStatus'
+        - name: round
+          in: query
+          description: ラウンドでフィルタ
+          schema:
+            $ref: '#/components/schemas/RoundType'
+        - name: tournament_id
+          in: query
+          description: トーナメントIDでフィルタ
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchListResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /matches/{id}:
+    get:
+      tags:
+        - matches
+      summary: ID別試合取得
+      description: 指定されたIDの試合を取得する
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MatchIdParam'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 試合が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /matches/sport/{sport}:
+    get:
+      tags:
+        - matches
+      summary: スポーツ別試合取得
+      description: 指定されたスポーツの試合を取得する
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SportParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          description: 試合ステータスでフィルタ
+          schema:
+            $ref: '#/components/schemas/MatchStatus'
+        - name: round
+          in: query
+          description: ラウンドでフィルタ
+          schema:
+            $ref: '#/components/schemas/RoundType'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchListResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /matches/tournament/{tournament_id}:
+    get:
+      tags:
+        - matches
+      summary: トーナメント別試合取得
+      description: 指定されたトーナメントの試合を取得する
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TournamentIdParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          description: 試合ステータスでフィルタ
+          schema:
+            $ref: '#/components/schemas/MatchStatus'
+        - name: round
+          in: query
+          description: ラウンドでフィルタ
+          schema:
+            $ref: '#/components/schemas/RoundType'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchListResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /matches/tournament/{tournament_id}/statistics:
+    get:
+      tags:
+        - matches
+      summary: 試合統計取得
+      description: 指定されたトーナメントの試合統計を取得する
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TournamentIdParam'
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchStatisticsResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /matches/tournament/{tournament_id}/next:
+    get:
+      tags:
+        - matches
+      summary: 次の試合取得
+      description: 指定されたトーナメントの次に実施予定の試合を取得する
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TournamentIdParam'
+        - name: limit
+          in: query
+          description: 取得件数制限
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+            default: 5
+            example: 5
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchListResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: トーナメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
