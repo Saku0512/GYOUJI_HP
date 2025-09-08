@@ -1,12 +1,12 @@
-// 認証関連API呼び出し
-import { apiClient } from './client.js';
+// 認証関連API呼び出し - 統一APIクライアントに移行
+import { unifiedAPI } from './unified-client.js';
 
 /**
- * 認証APIクライアント
- * JWTトークンベースの認証システムを管理
+ * 認証APIクライアント（後方互換性維持）
+ * 統一APIクライアントを使用するように更新
  */
 export class AuthAPI {
-  constructor(client = apiClient) {
+  constructor(client = unifiedAPI) {
     this.client = client;
     this.tokenKey = 'auth_token';
     this.refreshTokenKey = 'refresh_token';
@@ -57,7 +57,7 @@ export class AuthAPI {
       localStorage.setItem(this.userKey, JSON.stringify(user));
     }
     
-    // APIクライアントにトークンを設定
+    // 統一APIクライアントにトークンを設定
     this.client.setToken(token);
   }
 
@@ -71,7 +71,7 @@ export class AuthAPI {
     localStorage.removeItem(this.refreshTokenKey);
     localStorage.removeItem(this.userKey);
     
-    // APIクライアントからトークンを削除
+    // 統一APIクライアントからトークンを削除
     this.client.setToken(null);
   }
 
@@ -111,7 +111,7 @@ export class AuthAPI {
    */
   async login(username, password) {
     try {
-      const response = await this.client.post('/auth/login', {
+      const response = await this.client.auth.login({
         username,
         password
       });
@@ -154,7 +154,7 @@ export class AuthAPI {
       
       if (token) {
         // サーバーサイドでのログアウト処理
-        await this.client.post('/auth/logout');
+        await this.client.auth.logout();
       }
       
       // ローカルの認証情報をクリア
@@ -198,9 +198,7 @@ export class AuthAPI {
         };
       }
 
-      const response = await this.client.post('/auth/refresh', {
-        refresh_token: refreshToken
-      });
+      const response = await this.client.auth.refresh(refreshToken);
 
       if (response.success && response.data) {
         const { token, refresh_token: newRefreshToken, user } = response.data;
@@ -272,7 +270,7 @@ export class AuthAPI {
       }
 
       // サーバーサイドでの検証
-      const response = await this.client.get('/auth/validate');
+      const response = await this.client.auth.validate();
 
       if (response.success) {
         return {

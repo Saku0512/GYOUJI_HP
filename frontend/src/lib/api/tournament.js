@@ -1,12 +1,12 @@
-// トーナメント関連API呼び出し
-import { apiClient } from './client.js';
+// トーナメント関連API呼び出し - 統一APIクライアントに移行
+import { unifiedAPI } from './unified-client.js';
 
 /**
- * トーナメントAPIクライアント
- * トーナメント情報の取得と管理を行う
+ * トーナメントAPIクライアント（後方互換性維持）
+ * 統一APIクライアントを使用するように更新
  */
 export class TournamentAPI {
-  constructor(client = apiClient) {
+  constructor(client = unifiedAPI) {
     this.client = client;
     this.supportedSports = ['volleyball', 'table_tennis', 'soccer'];
   }
@@ -32,7 +32,7 @@ export class TournamentAPI {
    */
   async getTournaments() {
     try {
-      const response = await this.client.get('/tournaments');
+      const response = await this.client.tournaments.getAll();
 
       if (response.success) {
         return {
@@ -62,7 +62,7 @@ export class TournamentAPI {
     try {
       this.validateSport(sport);
 
-      const response = await this.client.get(`/tournaments/${sport}`);
+      const response = await this.client.tournaments.getBySport(sport);
 
       if (response.success) {
         return {
@@ -92,7 +92,7 @@ export class TournamentAPI {
     try {
       this.validateSport(sport);
 
-      const response = await this.client.get(`/tournaments/${sport}/bracket`);
+      const response = await this.client.tournaments.getBracket(sport);
 
       if (response.success) {
         return {
@@ -126,9 +126,7 @@ export class TournamentAPI {
         throw new Error('形式が指定されていません');
       }
 
-      const response = await this.client.put(`/tournaments/${sport}/format`, {
-        format: format
-      });
+      const response = await this.client.tournaments.updateFormat(sport, format);
 
       if (response.success) {
         return {
@@ -168,7 +166,7 @@ export class TournamentAPI {
         throw new Error('参加チーム情報が正しくありません');
       }
 
-      const response = await this.client.post('/tournaments', {
+      const response = await this.client.tournaments.create({
         sport,
         format,
         teams
@@ -202,7 +200,9 @@ export class TournamentAPI {
     try {
       this.validateSport(sport);
 
-      const response = await this.client.delete(`/tournaments/${sport}`);
+      // Note: 統一APIクライアントではIDベースの削除を使用
+      // スポーツ名での削除は直接リクエストを使用
+      const response = await this.client.request('DELETE', `/tournaments/${sport}`);
 
       if (response.success) {
         return {
@@ -237,7 +237,8 @@ export class TournamentAPI {
         throw new Error(`無効なステータスです: ${status}`);
       }
 
-      const response = await this.client.patch(`/tournaments/${sport}/status`, {
+      // 統一APIクライアントで直接リクエストを使用
+      const response = await this.client.request('PATCH', `/tournaments/${sport}/status`, {
         status
       });
 
@@ -269,7 +270,7 @@ export class TournamentAPI {
     try {
       this.validateSport(sport);
 
-      const response = await this.client.get(`/tournaments/${sport}/stats`);
+      const response = await this.client.request('GET', `/tournaments/${sport}/stats`);
 
       if (response.success) {
         return {
@@ -299,7 +300,7 @@ export class TournamentAPI {
     try {
       this.validateSport(sport);
 
-      const response = await this.client.get(`/tournaments/${sport}/formats`);
+      const response = await this.client.request('GET', `/tournaments/${sport}/formats`);
 
       if (response.success) {
         return {

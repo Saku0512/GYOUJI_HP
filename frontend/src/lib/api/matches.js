@@ -1,12 +1,12 @@
-// 試合関連API呼び出し
-import { apiClient } from './client.js';
+// 試合関連API呼び出し - 統一APIクライアントに移行
+import { unifiedAPI } from './unified-client.js';
 
 /**
- * 試合APIクライアント
- * 試合情報の取得と管理を行う
+ * 試合APIクライアント（後方互換性維持）
+ * 統一APIクライアントを使用するように更新
  */
 export class MatchAPI {
-  constructor(client = apiClient) {
+  constructor(client = unifiedAPI) {
     this.client = client;
     this.supportedSports = ['volleyball', 'table_tennis', 'soccer'];
     this.validStatuses = ['pending', 'in_progress', 'completed', 'cancelled'];
@@ -99,9 +99,7 @@ export class MatchAPI {
       }
 
       const queryString = queryParams.toString();
-      const endpoint = `/matches/${sport}${queryString ? `?${queryString}` : ''}`;
-
-      const response = await this.client.get(endpoint);
+      const response = await this.client.matches.getBySport(sport, options);
 
       if (response.success) {
         return {
@@ -131,7 +129,7 @@ export class MatchAPI {
     try {
       this.validateMatchId(matchId);
 
-      const response = await this.client.get(`/matches/${matchId}`);
+      const response = await this.client.matches.getById(matchId);
 
       if (response.success) {
         return {
@@ -162,7 +160,7 @@ export class MatchAPI {
       this.validateMatchId(matchId);
       this.validateMatchResult(result);
 
-      const response = await this.client.put(`/matches/${matchId}`, result);
+      const response = await this.client.matches.updateResult(matchId, result);
 
       if (response.success) {
         return {
@@ -218,7 +216,7 @@ export class MatchAPI {
         throw new Error('同じチーム同士の試合は作成できません');
       }
 
-      const response = await this.client.post('/matches', matchData);
+      const response = await this.client.matches.create(matchData);
 
       if (response.success) {
         return {
@@ -248,7 +246,7 @@ export class MatchAPI {
     try {
       this.validateMatchId(matchId);
 
-      const response = await this.client.delete(`/matches/${matchId}`);
+      const response = await this.client.matches.delete(matchId);
 
       if (response.success) {
         return {
@@ -282,7 +280,8 @@ export class MatchAPI {
         throw new Error(`無効なステータスです: ${status}`);
       }
 
-      const response = await this.client.patch(`/matches/${matchId}/status`, {
+      // 統一APIクライアントで直接リクエストを使用
+      const response = await this.client.request('PATCH', `/matches/${matchId}/status`, {
         status
       });
 
@@ -314,7 +313,7 @@ export class MatchAPI {
     try {
       this.validateSport(sport);
 
-      const response = await this.client.get(`/matches/${sport}/pending`);
+      const response = await this.client.request('GET', `/matches/${sport}/pending`);
 
       if (response.success) {
         return {
@@ -355,7 +354,7 @@ export class MatchAPI {
         this.validateMatchResult(update.result);
       }
 
-      const response = await this.client.put('/matches/batch', {
+      const response = await this.client.request('PUT', '/matches/batch', {
         updates
       });
 
@@ -387,7 +386,7 @@ export class MatchAPI {
     try {
       this.validateMatchId(matchId);
 
-      const response = await this.client.get(`/matches/${matchId}/stats`);
+      const response = await this.client.request('GET', `/matches/${matchId}/stats`);
 
       if (response.success) {
         return {
@@ -417,7 +416,7 @@ export class MatchAPI {
     try {
       this.validateSport(sport);
 
-      const response = await this.client.get(`/matches/${sport}/next`);
+      const response = await this.client.request('GET', `/matches/${sport}/next`);
 
       if (response.success) {
         return {
