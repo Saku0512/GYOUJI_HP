@@ -13,6 +13,7 @@ type Config struct {
 	JWT      JWTConfig
 	Server   ServerConfig
 	Admin    AdminConfig
+	Redis    RedisConfig
 }
 
 // DatabaseConfig holds database configuration
@@ -43,6 +44,15 @@ type AdminConfig struct {
 	Username        string
 	Password        string // プレーンテキストパスワード（起動時にハッシュ化される）
 	PasswordHash    string // ハッシュ化されたパスワード（内部使用）
+}
+
+// RedisConfig holds Redis configuration
+type RedisConfig struct {
+	Host     string
+	Port     int
+	Password string
+	DB       int
+	Enabled  bool
 }
 
 // Load loads configuration from environment variables
@@ -77,6 +87,13 @@ func Load() (*Config, error) {
 	// Admin configuration
 	config.Admin.Username = getEnv("ADMIN_USERNAME", "admin")
 	config.Admin.Password = getEnv("ADMIN_PASSWORD", "")
+
+	// Redis configuration
+	config.Redis.Host = getEnv("REDIS_HOST", "localhost")
+	config.Redis.Port = getEnvAsInt("REDIS_PORT", 6379)
+	config.Redis.Password = getEnv("REDIS_PASSWORD", "")
+	config.Redis.DB = getEnvAsInt("REDIS_DB", 0)
+	config.Redis.Enabled = getEnvAsBool("REDIS_ENABLED", true)
 
 	// Validate required configuration
 	if config.Database.Password == "" {
@@ -120,4 +137,22 @@ func (c *Config) GetServerAddress() string {
 // GetJWTExpiration returns JWT expiration duration
 func (c *Config) GetJWTExpiration() time.Duration {
 	return time.Duration(c.JWT.ExpirationHours) * time.Hour
+}
+
+// GetRedisAddress returns the full Redis address
+func (c *Config) GetRedisAddress() string {
+	return fmt.Sprintf("%s:%d", c.Redis.Host, c.Redis.Port)
+}
+
+// getEnvAsBool gets an environment variable as boolean with a fallback value
+func getEnvAsBool(key string, fallback bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if value == "true" || value == "1" {
+			return true
+		}
+		if value == "false" || value == "0" {
+			return false
+		}
+	}
+	return fallback
 }

@@ -308,6 +308,14 @@ type FilterRequest struct {
 	Round  *RoundType        `form:"round" example:"quarterfinal"`
 }
 
+// MatchFilterRequest は試合フィルタリングリクエストの統一構造体
+type MatchFilterRequest struct {
+	Sport        *SportType    `form:"sport" example:"volleyball"`
+	Status       *MatchStatus  `form:"status" example:"completed"`
+	Round        *RoundType    `form:"round" example:"quarterfinal"`
+	TournamentID *int          `form:"tournament_id" example:"1"`
+}
+
 // Validate はFilterRequestの検証を行う
 func (r *FilterRequest) Validate() error {
 	if r.Sport != nil && !r.Sport.IsValid() {

@@ -79,6 +79,31 @@ export class UnifiedAPIClient {
     }
   }
 
+  // ページネーション付きGETリクエスト
+  async requestPaginated(endpoint, params = {}, options = {}) {
+    const searchParams = new URLSearchParams();
+    
+    // ページネーションパラメータを追加
+    if (params.page) {
+      searchParams.set('page', params.page.toString());
+    }
+    if (params.page_size) {
+      searchParams.set('page_size', params.page_size.toString());
+    }
+    
+    // その他のパラメータを追加
+    Object.entries(params).forEach(([key, value]) => {
+      if (key !== 'page' && key !== 'page_size' && value !== undefined && value !== null) {
+        searchParams.set(key, value.toString());
+      }
+    });
+
+    const queryString = searchParams.toString();
+    const fullEndpoint = queryString ? `${endpoint}?${queryString}` : endpoint;
+    
+    return this.request('GET', fullEndpoint, null, options);
+  }
+
   // レスポンス処理
   async handleResponse(response, requestId) {
     const contentType = response.headers.get('content-type');
@@ -246,6 +271,17 @@ export class TournamentAPI {
     return this.client.get('/tournaments');
   }
 
+  // ページネーション付きトーナメント一覧取得
+  async getAllPaginated(params = {}) {
+    return this.client.requestPaginated('/tournaments', params);
+  }
+
+  // フィルター付きページネーション
+  async getByFilterPaginated(filters = {}, paginationParams = {}) {
+    const params = { ...filters, ...paginationParams };
+    return this.client.requestPaginated('/tournaments', params);
+  }
+
   async getBySport(sport) {
     return this.client.get(`/tournaments/${sport}`);
   }
@@ -294,6 +330,22 @@ export class MatchAPI {
     const endpoint = `/matches${queryString ? `?${queryString}` : ''}`;
     
     return this.client.get(endpoint);
+  }
+
+  // ページネーション付き試合一覧取得
+  async getAllPaginated(params = {}) {
+    return this.client.requestPaginated('/matches', params);
+  }
+
+  // スポーツ別ページネーション付き試合取得
+  async getBySportPaginated(sport, params = {}) {
+    return this.client.requestPaginated(`/matches/${sport}`, params);
+  }
+
+  // フィルター付きページネーション
+  async getByFilterPaginated(filters = {}, paginationParams = {}) {
+    const params = { ...filters, ...paginationParams };
+    return this.client.requestPaginated('/matches', params);
   }
 
   async getBySport(sport, filters) {
