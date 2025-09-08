@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS matches (
     status ENUM('pending', 'completed') DEFAULT 'pending' COMMENT '試合ステータス',
     scheduled_at TIMESTAMP NOT NULL COMMENT '試合予定時刻',
     completed_at TIMESTAMP NULL COMMENT '試合完了時刻',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '作成日時',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新日時',
     
     -- 外部キー制約
     FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
@@ -23,6 +25,8 @@ CREATE TABLE IF NOT EXISTS matches (
     INDEX idx_tournament_status (tournament_id, status),
     INDEX idx_scheduled_at (scheduled_at),
     INDEX idx_completed_at (completed_at),
+    INDEX idx_created_at (created_at),
+    INDEX idx_updated_at (updated_at),
     
     -- 制約
     CONSTRAINT chk_scores_non_negative CHECK (score1 IS NULL OR score1 >= 0),

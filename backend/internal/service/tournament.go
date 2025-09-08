@@ -106,14 +106,12 @@ func (s *tournamentService) GetTournaments(ctx context.Context, limit, offset in
 	return tournaments, nil
 }
 
-// GetTournamentBySport retrieves tournaments by sport or status
+// GetTournamentBySport retrieves tournaments by sport
 func (s *tournamentService) GetTournamentBySport(ctx context.Context, sport string, limit, offset int) ([]*models.Tournament, error) {
-	// For now, we'll treat this as a filter by status since the current model doesn't have a sport field
-	// This method can be enhanced when sport field is added to Tournament model
-	tournaments, err := s.tournamentRepo.GetByStatus(ctx, sport, limit, offset)
+	tournaments, err := s.tournamentRepo.GetBySport(ctx, sport, limit, offset)
 	if err != nil {
-		logger.Error("Failed to get tournaments by sport/status", "sport", sport, "error", err)
-		return nil, NewDatabaseError("failed to get tournaments by sport/status")
+		logger.Error("Failed to get tournaments by sport", "sport", sport, "error", err)
+		return nil, NewDatabaseError("failed to get tournaments by sport")
 	}
 	return tournaments, nil
 }
@@ -281,8 +279,8 @@ func (s *tournamentService) AdvanceWinner(ctx context.Context, matchID uint) err
 
 // GetTournamentProgress retrieves tournament progress information
 func (s *tournamentService) GetTournamentProgress(sport string) (*TournamentProgress, error) {
-	// Get tournament by sport (simplified - get first tournament with this sport)
-	tournaments, err := s.tournamentRepo.GetByStatus(context.Background(), "active", 1, 0)
+	// Get tournament by sport
+	tournaments, err := s.tournamentRepo.GetBySport(context.Background(), sport, 1, 0)
 	if err != nil {
 		logger.Error("Failed to get tournament by sport", "sport", sport, "error", err)
 		return nil, NewDatabaseError("failed to get tournament")

@@ -70,6 +70,12 @@ func main() {
 	matchRepo := repository.NewMatchRepository(db)
 	teamRepo := repository.NewTeamRepository(db)
 
+	// 管理者ユーザーの初期化
+	adminInitService := service.NewAdminInitService(userRepo, cfg)
+	if err := adminInitService.InitializeAdmin(); err != nil {
+		log.Fatal("管理者ユーザーの初期化に失敗しました", logger.Err(err))
+	}
+
 	// サービスの初期化
 	authService := service.NewAuthService(userRepo, cfg)
 	tournamentService := service.NewTournamentService(tournamentRepo, teamRepo, matchRepo)

@@ -12,6 +12,7 @@ type Config struct {
 	Database DatabaseConfig
 	JWT      JWTConfig
 	Server   ServerConfig
+	Admin    AdminConfig
 }
 
 // DatabaseConfig holds database configuration
@@ -35,6 +36,13 @@ type JWTConfig struct {
 type ServerConfig struct {
 	Port string
 	Host string
+}
+
+// AdminConfig holds admin user configuration
+type AdminConfig struct {
+	Username        string
+	Password        string // プレーンテキストパスワード（起動時にハッシュ化される）
+	PasswordHash    string // ハッシュ化されたパスワード（内部使用）
 }
 
 // Load loads configuration from environment variables
@@ -66,6 +74,10 @@ func Load() (*Config, error) {
 	config.Server.Port = getEnv("SERVER_PORT", "8080")
 	config.Server.Host = getEnv("SERVER_HOST", "0.0.0.0")
 
+	// Admin configuration
+	config.Admin.Username = getEnv("ADMIN_USERNAME", "admin")
+	config.Admin.Password = getEnv("ADMIN_PASSWORD", "")
+
 	// Validate required configuration
 	if config.Database.Password == "" {
 		fmt.Println("WARNING: DB_PASSWORD is empty. This may cause connection issues.")
@@ -73,6 +85,10 @@ func Load() (*Config, error) {
 
 	if config.JWT.SecretKey == "your-secret-key-change-in-production" {
 		fmt.Println("WARNING: Using default JWT secret key. Please set JWT_SECRET environment variable in production.")
+	}
+
+	if config.Admin.Password == "" {
+		fmt.Println("WARNING: ADMIN_PASSWORD is empty. Admin authentication will not work.")
 	}
 
 	return config, nil

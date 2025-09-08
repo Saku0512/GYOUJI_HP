@@ -72,7 +72,7 @@ func (r *Router) setupMiddleware() {
 
 	// CORS設定
 	r.engine.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173"}, // フロントエンドのURL
+		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:3300"}, // フロントエンドのURL
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -133,6 +133,8 @@ func (r *Router) setupAuthRoutes(api *gin.RouterGroup) {
 	{
 		auth.POST("/login", r.handlers.AuthHandler.Login)
 		auth.POST("/refresh", r.handlers.AuthHandler.RefreshToken)
+		auth.POST("/validate", r.handlers.AuthHandler.ValidateToken)
+		auth.GET("/validate", r.handlers.AuthHandler.ValidateToken) // GETメソッドにも対応
 	}
 }
 
@@ -160,6 +162,7 @@ func (r *Router) setupTournamentRoutes(protected *gin.RouterGroup, authMiddlewar
 		tournaments.GET("", r.handlers.TournamentHandler.GetTournaments)
 		tournaments.GET("/:sport", r.handlers.TournamentHandler.GetTournamentBySport)
 		tournaments.GET("/:sport/bracket", r.handlers.TournamentHandler.GetTournamentBracket)
+		tournaments.GET("/:sport/formats", r.handlers.TournamentHandler.GetAvailableFormats)
 
 		// 管理者のみアクセス可能
 		adminTournaments := tournaments.Group("/")
@@ -168,6 +171,7 @@ func (r *Router) setupTournamentRoutes(protected *gin.RouterGroup, authMiddlewar
 			adminTournaments.POST("", r.handlers.TournamentHandler.CreateTournament)
 			adminTournaments.PUT("/:id", r.handlers.TournamentHandler.UpdateTournament)
 			adminTournaments.PUT("/:id/format", r.handlers.TournamentHandler.SwitchTournamentFormat)
+			adminTournaments.PUT("/:sport/format", r.handlers.TournamentHandler.UpdateTournamentFormat)
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"backend/internal/models"
 	"backend/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -28,11 +29,7 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		// Authorizationヘッダーを取得
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":   "Unauthorized",
-				"message": "認証トークンが必要です",
-				"code":    http.StatusUnauthorized,
-			})
+			c.Error(models.NewAPIError(models.ErrorAuthUnauthorized, "認証トークンが必要です", http.StatusUnauthorized))
 			c.Abort()
 			return
 		}
@@ -40,11 +37,7 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		// Bearer トークンの形式をチェック
 		tokenParts := strings.Split(authHeader, " ")
 		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":   "Unauthorized",
-				"message": "無効な認証トークン形式です",
-				"code":    http.StatusUnauthorized,
-			})
+			c.Error(models.NewAPIError(models.ErrorAuthTokenInvalid, "無効な認証トークン形式です", http.StatusUnauthorized))
 			c.Abort()
 			return
 		}
@@ -54,11 +47,7 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		// トークンを検証
 		claims, err := m.authService.ValidateToken(token)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":   "Unauthorized",
-				"message": "無効または期限切れのトークンです",
-				"code":    http.StatusUnauthorized,
-			})
+			c.Error(models.NewAPIError(models.ErrorAuthTokenInvalid, "無効または期限切れのトークンです", http.StatusUnauthorized))
 			c.Abort()
 			return
 		}
@@ -79,22 +68,14 @@ func (m *AuthMiddleware) RequireAdmin() gin.HandlerFunc {
 		// 先にRequireAuth()が実行されていることを前提とする
 		role, exists := c.Get("role")
 		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":   "Unauthorized",
-				"message": "認証情報が見つかりません",
-				"code":    http.StatusUnauthorized,
-			})
+			c.Error(models.NewAPIError(models.ErrorAuthUnauthorized, "認証情報が見つかりません", http.StatusUnauthorized))
 			c.Abort()
 			return
 		}
 
 		// 管理者権限をチェック
 		if role != "admin" {
-			c.JSON(http.StatusForbidden, gin.H{
-				"error":   "Forbidden",
-				"message": "管理者権限が必要です",
-				"code":    http.StatusForbidden,
-			})
+			c.Error(models.NewAPIError(models.ErrorAuthForbidden, "管理者権限が必要です", http.StatusForbidden))
 			c.Abort()
 			return
 		}
@@ -122,22 +103,23 @@ func CORSMiddleware() gin.HandlerFunc {
 }
 
 // ErrorHandlerMiddleware は統一されたエラーレスポンスを提供するミドルウェア
+// 注意: この関数は廃止予定です。新しい実装では error_middleware.go の ErrorHandlerMiddleware を使用してください
 func ErrorHandlerMiddleware() gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
-		if err, ok := recovered.(string); ok {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":   "Internal Server Error",
-				"message": "サーバー内部エラーが発生しました",
-				"code":    http.StatusInternalServerError,
-				"details": err,
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":   "Internal Server Error",
-				"message": "予期しないエラーが発生しました",
-				"code":    http.StatusInternalServerError,
-			})
+		response := models.NewErrorResponse(
+			models.ErrorSystemUnknownError,
+			"サーバー内部エラーが発生しました",
+			http.StatusInternalServerError,
+		)
+		
+		// リクエストIDを追加
+		if requestID, exists := c.Get("request_id"); exists {
+			if id, ok := requestID.(string); ok {
+				response.SetRequestID(id)
+			}
 		}
+		
+		c.JSON(http.StatusInternalServerError, response)
 		c.Abort()
 	})
 }

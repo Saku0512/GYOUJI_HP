@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -80,6 +81,23 @@ func (m *MockUserRepository) GetUserByUsername(username string) (*models.User, e
 
 func (m *MockUserRepository) SetError(err error) {
 	m.err = err
+}
+
+func (m *MockUserRepository) UpdateUser(user *models.User) error {
+	if m.err != nil {
+		return m.err
+	}
+	
+	// 既存ユーザーを探す
+	for username, existingUser := range m.users {
+		if existingUser.ID == user.ID {
+			// ユーザーを更新
+			m.users[username] = user
+			return nil
+		}
+	}
+	
+	return fmt.Errorf("ユーザーが見つかりません: ID %d", user.ID)
 }
 
 func (m *MockUserRepository) AddUser(username, password, role string) error {

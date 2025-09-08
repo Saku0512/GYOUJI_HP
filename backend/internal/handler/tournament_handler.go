@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -142,6 +143,51 @@ func convertToSwaggerTournamentProgress(progress *service.TournamentProgress) To
 		ProgressPercent:  progress.ProgressPercent,
 		CurrentRound:     progress.CurrentRound,
 	}
+}
+
+// convertMatchesToRounds はマッチデータをラウンド形式に変換する
+func convertMatchesToRounds(matches []*models.Match) []models.Round {
+	roundMap := make(map[string][]models.Match)
+	
+	// ラウンド別にマッチをグループ化（ポインタから値に変換）
+	for _, match := range matches {
+		roundMap[match.Round] = append(roundMap[match.Round], *match)
+	}
+	
+	// ラウンドの順序を定義
+	roundOrder := []string{
+		"1st_round", "2nd_round", "3rd_round", "4th_round",
+		"quarterfinal", "semifinal", "final",
+	}
+	
+	var rounds []models.Round
+	for _, roundName := range roundOrder {
+		if roundMatches, exists := roundMap[roundName]; exists {
+			rounds = append(rounds, models.Round{
+				Name:    roundName,
+				Matches: roundMatches,
+			})
+		}
+	}
+	
+	// 定義されていないラウンドも追加
+	for roundName, roundMatches := range roundMap {
+		found := false
+		for _, definedRound := range roundOrder {
+			if roundName == definedRound {
+				found = true
+				break
+			}
+		}
+		if !found {
+			rounds = append(rounds, models.Round{
+				Name:    roundName,
+				Matches: roundMatches,
+			})
+		}
+	}
+	
+	return rounds
 }
 
 // BracketResponse はブラケットレスポンスの構造体
@@ -1045,6 +1091,183 @@ func (h *TournamentHandler) CompleteTournament(c *gin.Context) {
 	})
 }
 
+// GetAvailableFormats は利用可能な形式一覧取得エンドポイントハンドラー
+// @Summary 利用可能な形式一覧取得
+// @Description 指定されたスポーツで利用可能なトーナメント形式一覧を取得する
+// @Tags tournaments
+// @Produce json
+// @Param sport path string true "スポーツ名" Enums(volleyball,table_tennis,soccer)
+// @Success 200 {object} map[string]interface{} "取得成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/{sport}/formats [get]
+func (h *TournamentHandler) GetAvailableFormats(c *gin.Context) {
+	sport := c.Param("sport")
+
+	// 入力値の検証
+	if strings.TrimSpace(sport) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "スポーツパラメータは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// スポーツ別の利用可能な形式を定義
+	var formats []string
+	switch sport {
+	case "volleyball":
+		formats = []string{"standard", "single_elimination", "double_elimination"}
+	case "table_tennis":
+		formats = []string{"sunny", "rainy", "standard"}
+	case "soccer":
+		formats = []string{"standard", "group_stage", "knockout"}
+	default:
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "サポートされていないスポーツです",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    formats,
+		"message": fmt.Sprintf("%sの利用可能な形式一覧を取得しました", sport),
+	})
+}
+
+// UpdateTournamentFormat はトーナメント形式更新エンドポイントハンドラー
+// @Summary トーナメント形式更新
+// @Description 指定されたスポーツのトーナメント形式を更新する（管理者のみ）
+// @Tags tournaments
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param sport path string true "スポーツ名" Enums(volleyball,table_tennis,soccer)
+// @Param request body SwitchFormatRequest true "形式更新情報"
+// @Success 200 {object} TournamentResponse "更新成功"
+// @Failure 400 {object} ErrorResponse "リクエストエラー"
+// @Failure 401 {object} ErrorResponse "認証エラー"
+// @Failure 404 {object} ErrorResponse "未発見エラー"
+// @Failure 500 {object} ErrorResponse "サーバーエラー"
+// @Router /api/tournaments/{sport}/format [put]
+func (h *TournamentHandler) UpdateTournamentFormat(c *gin.Context) {
+	sport := c.Param("sport")
+	var req SwitchFormatRequest
+
+	// 入力値の検証
+	if strings.TrimSpace(sport) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "スポーツパラメータは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// リクエストボディをバインド
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "無効なリクエスト形式です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// 入力値の検証
+	if strings.TrimSpace(req.Format) == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Bad Request",
+			Message: "フォーマットは必須です",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	// スポーツ別トーナメント取得
+	tournaments, err := h.tournamentService.GetTournamentBySport(context.Background(), sport, 1, 0)
+	if err != nil {
+		if strings.Contains(err.Error(), "見つかりません") || strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Not Found",
+				Message: "指定されたスポーツのトーナメントが見つかりません",
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメントの取得に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+	
+	if len(tournaments) == 0 {
+		c.JSON(http.StatusNotFound, ErrorResponse{
+			Error:   "Not Found",
+			Message: "指定されたスポーツのトーナメントが見つかりません",
+			Code:    http.StatusNotFound,
+		})
+		return
+	}
+	
+	tournament := tournaments[0]
+	
+	// 既に同じ形式の場合
+	if tournament.Format == req.Format {
+		c.JSON(http.StatusOK, TournamentResponse{
+			Success: true,
+			Data:    convertToSwaggerTournament(tournament),
+			Message: "既に指定された形式です",
+		})
+		return
+	}
+	
+	// トーナメント形式更新
+	tournament.Format = req.Format
+	err = h.tournamentService.UpdateTournament(context.Background(), uint(tournament.ID), tournament)
+	if err != nil {
+		if strings.Contains(err.Error(), "サポートしていません") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "無効な") {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal Server Error",
+			Message: "トーナメント形式の更新に失敗しました",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	// 成功レスポンス
+	c.JSON(http.StatusOK, TournamentResponse{
+		Success: true,
+		Data:    convertToSwaggerTournament(tournament),
+		Message: "トーナメント形式を更新しました",
+	})
+}
+
 // ActivateTournament はトーナメントアクティブ化エンドポイントハンドラー
 // @Summary トーナメントアクティブ化
 // @Description 指定されたスポーツのトーナメントをアクティブ状態にする（管理者のみ）
@@ -1151,23 +1374,3 @@ func (h *TournamentHandler) ActivateTournament(c *gin.Context) {
 	})
 }
 
-// convertMatchesToRounds はマッチ配列をラウンド配列に変換する
-func convertMatchesToRounds(matches []*models.Match) []models.Round {
-	roundMap := make(map[string][]models.Match)
-	
-	// ラウンド別にマッチを分類
-	for _, match := range matches {
-		roundMap[match.Round] = append(roundMap[match.Round], *match)
-	}
-	
-	// ラウンド配列を作成
-	rounds := make([]models.Round, 0, len(roundMap))
-	for roundName, roundMatches := range roundMap {
-		rounds = append(rounds, models.Round{
-			Name:    roundName,
-			Matches: roundMatches,
-		})
-	}
-	
-	return rounds
-}

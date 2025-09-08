@@ -16,6 +16,7 @@ type TournamentRepository interface {
 	GetByName(ctx context.Context, name string) (*models.Tournament, error)
 	GetAll(ctx context.Context, limit, offset int) ([]*models.Tournament, error)
 	GetByStatus(ctx context.Context, status string, limit, offset int) ([]*models.Tournament, error)
+	GetBySport(ctx context.Context, sport string, limit, offset int) ([]*models.Tournament, error)
 	Update(ctx context.Context, tournament *models.Tournament) error
 	Delete(ctx context.Context, id uint) error
 }
@@ -177,6 +178,25 @@ func (r *tournamentRepository) Update(ctx context.Context, tournament *models.To
 	)
 	
 	return err
+}
+
+// GetBySport retrieves tournaments by sport with pagination
+func (r *tournamentRepository) GetBySport(ctx context.Context, sport string, limit, offset int) ([]*models.Tournament, error) {
+	query := `
+		SELECT id, sport, format, status, created_at, updated_at
+		FROM tournaments
+		WHERE sport = ?
+		ORDER BY created_at DESC
+		LIMIT ? OFFSET ?
+	`
+	
+	rows, err := r.base.Query(query, sport, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	return r.scanTournaments(rows)
 }
 
 // Delete deletes a tournament

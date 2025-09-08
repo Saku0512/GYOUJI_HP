@@ -234,30 +234,60 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 
 // ValidateToken はトークン検証エンドポイントハンドラー
 // @Summary トークン検証
-// @Description JWTトークンの有効性を検証する
+// @Description JWTトークンの有効性を検証する（POSTリクエストボディまたはGETのAuthorizationヘッダーから）
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param request body RefreshTokenRequest true "検証するトークン"
+// @Param request body RefreshTokenRequest false "検証するトークン（POSTの場合）"
+// @Param Authorization header string false "Bearer トークン（GETの場合）"
 // @Success 200 {object} map[string]interface{} "検証成功"
 // @Failure 400 {object} ErrorResponse "リクエストエラー"
 // @Failure 401 {object} ErrorResponse "認証エラー"
 // @Router /api/auth/validate [post]
+// @Router /api/auth/validate [get]
 func (h *AuthHandler) ValidateToken(c *gin.Context) {
-	var req RefreshTokenRequest
+	var token string
 
-	// リクエストボディをバインド
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "無効なリクエスト形式です",
-			Code:    http.StatusBadRequest,
-		})
-		return
+	// リクエストメソッドに応じてトークンを取得
+	if c.Request.Method == "POST" {
+		// POSTリクエストの場合：リクエストボディから取得
+		var req RefreshTokenRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: "無効なリクエスト形式です",
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+		token = req.Token
+	} else {
+		// GETリクエストの場合：Authorizationヘッダーから取得
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: "Authorizationヘッダーが必要です",
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
+
+		// "Bearer "プレフィックスを削除
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			token = authHeader[7:]
+		} else {
+			c.JSON(http.StatusBadRequest, ErrorResponse{
+				Error:   "Bad Request",
+				Message: "無効なAuthorizationヘッダー形式です",
+				Code:    http.StatusBadRequest,
+			})
+			return
+		}
 	}
 
 	// 入力値の検証
-	if strings.TrimSpace(req.Token) == "" {
+	if strings.TrimSpace(token) == "" {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error:   "Bad Request",
 			Message: "トークンは必須です",
@@ -267,7 +297,7 @@ func (h *AuthHandler) ValidateToken(c *gin.Context) {
 	}
 
 	// トークンを検証
-	claims, err := h.authService.ValidateToken(req.Token)
+	claims, err := h.authService.ValidateToken(token)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{
 			Error:   "Unauthorized",

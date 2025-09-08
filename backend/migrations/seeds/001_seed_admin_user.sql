@@ -2,7 +2,7 @@
 -- パスワード: admin123 (bcryptハッシュ化済み)
 
 INSERT INTO users (username, password, role) VALUES 
-('admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin')
+('admin', '$2a$10$rh2lI/npcfCnXsskVbKQGO5cbb4i2Vxh7iZfg5PqgjFz/NWnCWLIO', 'admin')
 ON DUPLICATE KEY UPDATE 
     password = VALUES(password),
     role = VALUES(role);

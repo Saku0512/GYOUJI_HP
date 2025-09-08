@@ -21,6 +21,9 @@ type UserRepository interface {
 	
 	// GetUserByUsername はユーザー名でユーザーを取得する
 	GetUserByUsername(username string) (*models.User, error)
+	
+	// UpdateUser は既存のユーザーを更新する
+	UpdateUser(user *models.User) error
 }
 
 // userRepositoryImpl はUserRepositoryの実装
@@ -156,4 +159,44 @@ func (r *userRepositoryImpl) GetUserByUsername(username string) (*models.User, e
 	
 	log.Printf("ユーザーを取得しました: %s", user.Username)
 	return &user, nil
+}
+
+// UpdateUser は既存のユーザーを更新する
+func (r *userRepositoryImpl) UpdateUser(user *models.User) error {
+	// 入力値の検証
+	if user == nil {
+		return NewRepositoryError(ErrTypeValidation, "ユーザーは必須です", nil)
+	}
+	
+	if user.ID <= 0 {
+		return NewRepositoryError(ErrTypeValidation, "無効なユーザーIDです", nil)
+	}
+	
+	if err := user.Validate(); err != nil {
+		return NewRepositoryError(ErrTypeValidation, "ユーザーデータ検証エラー", err)
+	}
+	
+	query := `
+		UPDATE users 
+		SET username = ?, password = ?, role = ? 
+		WHERE id = ?
+	`
+	
+	result, err := r.ExecQuery(query, user.Username, user.Password, user.Role, user.ID)
+	if err != nil {
+		return HandleSQLError(err, "ユーザー更新")
+	}
+	
+	// 更新された行数を確認
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return NewRepositoryError(ErrTypeQuery, "更新行数取得エラー", err)
+	}
+	
+	if rowsAffected == 0 {
+		return NewRepositoryError(ErrTypeNotFound, "更新対象のユーザーが見つかりません", nil)
+	}
+	
+	log.Printf("ユーザーを更新しました: %s (ID: %d)", user.Username, user.ID)
+	return nil
 }

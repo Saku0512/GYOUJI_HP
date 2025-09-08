@@ -124,16 +124,25 @@
         
         // 現在の形式を取得
         const tournamentResponse = await tournamentAPI.getTournament(currentSport);
+        
         if (tournamentResponse.success && tournamentResponse.data) {
           currentFormat = tournamentResponse.data.format || '';
         }
       } else {
         console.error('Failed to load available formats:', response);
+        uiActions.showNotification(
+          response.message || '利用可能な形式の取得に失敗しました',
+          'error'
+        );
         availableFormats = [];
         currentFormat = '';
       }
     } catch (error) {
       console.error('Load available formats error:', error);
+      uiActions.showNotification(
+        '利用可能な形式の取得でエラーが発生しました',
+        'error'
+      );
       availableFormats = [];
       currentFormat = '';
     } finally {

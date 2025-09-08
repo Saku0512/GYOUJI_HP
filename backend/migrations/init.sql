@@ -18,16 +18,11 @@ SOURCE /docker-entrypoint-initdb.d/002_create_tournaments_table.sql;
 -- 3. 試合テーブル（外部キー制約があるため最後）
 SOURCE /docker-entrypoint-initdb.d/003_create_matches_table.sql;
 
--- 初期データの挿入
--- デフォルト管理者ユーザーの作成（パスワード: admin123）
-INSERT IGNORE INTO users (username, password, role) VALUES 
-('admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
+-- 4. トーナメント初期化
+SOURCE /docker-entrypoint-initdb.d/004_update_tournaments_and_add_initial_data.sql
 
--- 各スポーツのトーナメント作成
-INSERT IGNORE INTO tournaments (sport, format, status) VALUES 
-('volleyball', 'standard', 'active'),
-('table_tennis', 'standard', 'active'),
-('soccer', 'standard', 'active');
+-- 5. トーナメント情報初期化
+SOURCE /docker-entrypoint-initdb.d/005_insert_tournament_matches.sql
 
 -- インデックスの最適化
 ANALYZE TABLE users;

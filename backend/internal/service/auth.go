@@ -66,7 +66,27 @@ func (s *authServiceImpl) Login(username, password string) (string, error) {
 	
 	log.Printf("ログイン試行: %s", username)
 	
-	// ユーザーの存在確認と認証情報検証
+	// 管理者認証を優先的にチェック
+	log.Printf("管理者認証チェック: username=%s, config.Admin.Username=%s", username, s.config.Admin.Username)
+	if username == s.config.Admin.Username {
+		// ハッシュ化されたパスワードで検証
+		if err := s.VerifyPassword(s.config.Admin.PasswordHash, password); err == nil {
+			// 管理者認証成功 - 固定のユーザーIDを使用
+			token, err := s.GenerateToken(1, username)
+			if err != nil {
+				log.Printf("管理者トークン生成エラー: %v", err)
+				return "", errors.New("トークン生成に失敗しました")
+			}
+			
+			log.Printf("管理者ログイン成功: %s", username)
+			return token, nil
+		} else {
+			log.Printf("管理者パスワード検証失敗: %s", username)
+			return "", errors.New("認証に失敗しました")
+		}
+	}
+	
+	// 通常ユーザーの認証（データベースから取得）
 	user, err := s.userRepo.GetUserByUsername(username)
 	if err != nil {
 		log.Printf("ユーザー取得エラー: %v", err)
