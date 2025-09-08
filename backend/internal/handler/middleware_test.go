@@ -17,17 +17,28 @@ type MockAuthService struct {
 	mock.Mock
 }
 
-func (m *MockAuthService) Login(username, password string) (string, error) {
+func (m *MockAuthService) Login(username, password string) (string, *service.JWTClaims, error) {
 	args := m.Called(username, password)
-	return args.String(0), args.Error(1)
+	if args.Get(1) == nil {
+		return args.String(0), nil, args.Error(2)
+	}
+	return args.String(0), args.Get(1).(*service.JWTClaims), args.Error(2)
 }
 
-func (m *MockAuthService) ValidateToken(tokenString string) (*service.Claims, error) {
+func (m *MockAuthService) ValidateToken(tokenString string) (*service.JWTClaims, error) {
 	args := m.Called(tokenString)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*service.Claims), args.Error(1)
+	return args.Get(0).(*service.JWTClaims), args.Error(1)
+}
+
+func (m *MockAuthService) RefreshToken(tokenString string) (string, *service.JWTClaims, error) {
+	args := m.Called(tokenString)
+	if args.Get(1) == nil {
+		return args.String(0), nil, args.Error(2)
+	}
+	return args.String(0), args.Get(1).(*service.JWTClaims), args.Error(2)
 }
 
 func (m *MockAuthService) GenerateToken(userID int, username string) (string, error) {

@@ -13,8 +13,8 @@ import (
 
 // AuthService は認証関連のビジネスロジックを提供するインターフェース
 type AuthService interface {
-	// Login はユーザー認証を行い、JWTトークンを生成する
-	Login(username, password string) (string, error)
+	// Login はユーザー認証を行い、JWTトークンとクレームを生成する
+	Login(username, password string) (string, *JWTClaims, error)
 	
 	// ValidateToken はJWTトークンを検証し、クレームを返す
 	ValidateToken(tokenString string) (*JWTClaims, error)
@@ -22,8 +22,8 @@ type AuthService interface {
 	// GenerateToken はユーザーIDに基づいてJWTトークンを生成する
 	GenerateToken(userID int, username string) (string, error)
 	
-	// RefreshToken は既存のトークンから新しいトークンを生成する
-	RefreshToken(tokenString string) (string, error)
+	// RefreshToken は既存のトークンから新しいトークンとクレームを生成する
+	RefreshToken(tokenString string) (string, *JWTClaims, error)
 	
 	// HashPassword はパスワードをbcryptでハッシュ化する
 	HashPassword(password string) (string, error)
@@ -48,15 +48,15 @@ func NewAuthService(userRepo repository.UserRepository, cfg *config.Config) Auth
 	}
 }
 
-// Login はユーザー認証を行い、JWTトークンを生成する
-func (s *authServiceImpl) Login(username, password string) (string, error) {
+// Login はユーザー認証を行い、JWTトークンとクレームを生成する
+func (s *authServiceImpl) Login(username, password string) (string, *JWTClaims, error) {
 	// 入力値の検証
 	if username == "" {
-		return "", errors.New("ユーザー名は必須です")
+		return "", nil, errors.New("ユーザー名は必須です")
 	}
 	
 	if password == "" {
-		return "", errors.New("パスワードは必須です")
+		return "", nil, errors.New("パスワードは必須です")
 	}
 	
 	log.Printf("ログイン試行: %s", username)
@@ -70,14 +70,21 @@ func (s *authServiceImpl) Login(username, password string) (string, error) {
 			token, err := s.jwtService.GenerateToken(1, username, models.RoleAdmin)
 			if err != nil {
 				log.Printf("管理者トークン生成エラー: %v", err)
-				return "", errors.New("トークン生成に失敗しました")
+				return "", nil, errors.New("トークン生成に失敗しました")
+			}
+			
+			// トークンを検証してクレームを取得
+			claims, err := s.jwtService.ValidateToken(token)
+			if err != nil {
+				log.Printf("管理者トークン検証エラー: %v", err)
+				return "", nil, errors.New("トークン検証に失敗しました")
 			}
 			
 			log.Printf("管理者ログイン成功: %s", username)
-			return token, nil
+			return token, claims, nil
 		} else {
 			log.Printf("管理者パスワード検証失敗: %s", username)
-			return "", errors.New("認証に失敗しました")
+			return "", nil, errors.New("認証に失敗しました")
 		}
 	}
 	
@@ -85,24 +92,31 @@ func (s *authServiceImpl) Login(username, password string) (string, error) {
 	user, err := s.userRepo.GetUserByUsername(username)
 	if err != nil {
 		log.Printf("ユーザー取得エラー: %v", err)
-		return "", errors.New("認証に失敗しました")
+		return "", nil, errors.New("認証に失敗しました")
 	}
 	
 	// パスワード検証
 	if err := s.VerifyPassword(user.Password, password); err != nil {
 		log.Printf("パスワード検証失敗: %s", username)
-		return "", errors.New("認証に失敗しました")
+		return "", nil, errors.New("認証に失敗しました")
 	}
 	
 	// JWTトークン生成（通常ユーザーは管理者ロールを付与）
 	token, err := s.jwtService.GenerateToken(user.ID, user.Username, models.RoleAdmin)
 	if err != nil {
 		log.Printf("トークン生成エラー: %v", err)
-		return "", errors.New("トークン生成に失敗しました")
+		return "", nil, errors.New("トークン生成に失敗しました")
+	}
+	
+	// トークンを検証してクレームを取得
+	claims, err := s.jwtService.ValidateToken(token)
+	if err != nil {
+		log.Printf("トークン検証エラー: %v", err)
+		return "", nil, errors.New("トークン検証に失敗しました")
 	}
 	
 	log.Printf("ログイン成功: %s", username)
-	return token, nil
+	return token, claims, nil
 }
 
 // ValidateToken はJWTトークンを検証し、クレームを返す
@@ -116,9 +130,31 @@ func (s *authServiceImpl) GenerateToken(userID int, username string) (string, er
 	return s.jwtService.GenerateToken(userID, username, models.RoleAdmin)
 }
 
-// RefreshToken は既存のトークンから新しいトークンを生成する
-func (s *authServiceImpl) RefreshToken(tokenString string) (string, error) {
-	return s.jwtService.RefreshToken(tokenString)
+// RefreshToken は既存のトークンから新しいトークンとクレームを生成する
+func (s *authServiceImpl) RefreshToken(tokenString string) (string, *JWTClaims, error) {
+	// 既存のトークンを検証（期限切れでも構造が正しければOK）
+	claims, err := s.jwtService.ParseTokenIgnoreExpiration(tokenString)
+	if err != nil {
+		return "", nil, err
+	}
+	
+	// 新しいトークンを生成
+	newToken, err := s.jwtService.GenerateToken(claims.UserID, claims.Username, claims.Role)
+	if err != nil {
+		log.Printf("リフレッシュトークン生成エラー: %v", err)
+		return "", nil, errors.New("新しいトークンの生成に失敗しました")
+	}
+	
+	// 新しいトークンを検証してクレームを取得
+	newClaims, err := s.jwtService.ValidateToken(newToken)
+	if err != nil {
+		log.Printf("リフレッシュトークン検証エラー: %v", err)
+		return "", nil, errors.New("新しいトークンの検証に失敗しました")
+	}
+	
+	log.Printf("JWTリフレッシュ成功: user_id=%d, username=%s", claims.UserID, claims.Username)
+	
+	return newToken, newClaims, nil
 }
 
 // HashPassword はパスワードをbcryptでハッシュ化する

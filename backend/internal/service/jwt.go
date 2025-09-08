@@ -22,6 +22,9 @@ type JWTService interface {
 	// RefreshToken は既存のトークンから新しいトークンを生成する
 	RefreshToken(tokenString string) (string, error)
 	
+	// ParseTokenIgnoreExpiration は有効期限を無視してトークンをパースする（リフレッシュ用）
+	ParseTokenIgnoreExpiration(tokenString string) (*JWTClaims, error)
+	
 	// GetTokenExpiration はトークンの有効期限を取得する
 	GetTokenExpiration() time.Duration
 }
@@ -154,7 +157,7 @@ func (s *jwtServiceImpl) ValidateToken(tokenString string) (*JWTClaims, error) {
 // RefreshToken は既存のトークンから新しいトークンを生成する
 func (s *jwtServiceImpl) RefreshToken(tokenString string) (string, error) {
 	// 既存のトークンを検証（期限切れでも構造が正しければOK）
-	claims, err := s.parseTokenIgnoreExpiration(tokenString)
+	claims, err := s.ParseTokenIgnoreExpiration(tokenString)
 	if err != nil {
 		return "", err
 	}
@@ -176,8 +179,8 @@ func (s *jwtServiceImpl) GetTokenExpiration() time.Duration {
 	return s.config.GetJWTExpiration()
 }
 
-// parseTokenIgnoreExpiration は有効期限を無視してトークンをパースする（リフレッシュ用）
-func (s *jwtServiceImpl) parseTokenIgnoreExpiration(tokenString string) (*JWTClaims, error) {
+// ParseTokenIgnoreExpiration は有効期限を無視してトークンをパースする（リフレッシュ用）
+func (s *jwtServiceImpl) ParseTokenIgnoreExpiration(tokenString string) (*JWTClaims, error) {
 	if tokenString == "" {
 		return nil, errors.New("トークンは必須です")
 	}

@@ -15,24 +15,19 @@ import (
 
 // MatchHandler は試合関連のHTTPハンドラー
 type MatchHandler struct {
+	*BaseHandler
 	matchService service.MatchService
 }
 
 // NewMatchHandler は新しいMatchHandlerを作成する
 func NewMatchHandler(matchService service.MatchService) *MatchHandler {
 	return &MatchHandler{
+		BaseHandler:  NewBaseHandler(),
 		matchService: matchService,
 	}
 }
 
-// CreateMatchRequest は試合作成リクエストの構造体
-type CreateMatchRequest struct {
-	TournamentID int    `json:"tournament_id" binding:"required"`
-	Round        string `json:"round" binding:"required"`
-	Team1        string `json:"team1" binding:"required"`
-	Team2        string `json:"team2" binding:"required"`
-	ScheduledAt  string `json:"scheduled_at" binding:"required"`
-}
+
 
 // UpdateMatchRequest は試合更新リクエストの構造体
 type UpdateMatchRequest struct {
@@ -187,42 +182,18 @@ type TeamStats struct {
 // @Failure 500 {object} ErrorResponse "サーバーエラー"
 // @Router /api/matches [post]
 func (h *MatchHandler) CreateMatch(c *gin.Context) {
-	var req CreateMatchRequest
+	var req models.CreateMatchRequest
 
 	// リクエストボディをバインド
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "無効なリクエスト形式です",
-			Code:    http.StatusBadRequest,
-		})
+		h.SendBindingError(c, err)
 		return
 	}
 
 	// 入力値の検証
-	if req.TournamentID <= 0 {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "トーナメントIDは必須です",
-			Code:    http.StatusBadRequest,
-		})
+	if err := req.Validate(); err != nil {
+		h.SendErrorWithCode(c, models.ErrorValidationInvalidFormat, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	if strings.TrimSpace(req.Round) == "" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "ラウンドは必須です",
-			Code:    http.StatusBadRequest,
-		})
-		return
-	}
-
-	if strings.TrimSpace(req.Team1) == "" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "チーム1は必須です",
-			Code:    http.StatusBadRequest,
 		})
 		return
 	}
@@ -588,35 +559,24 @@ func (h *MatchHandler) UpdateMatch(c *gin.Context) {
 // @Router /api/matches/{id}/result [put]
 func (h *MatchHandler) SubmitMatchResult(c *gin.Context) {
 	idStr := c.Param("id")
-	var req SubmitMatchResultRequest
+	var req models.SubmitMatchResultRequest
 
 	// IDの変換
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "無効な試合IDです",
-			Code:    http.StatusBadRequest,
-		})
+		h.SendErrorWithCode(c, models.ErrorValidationInvalidFormat, "無効な試合IDです", http.StatusBadRequest)
 		return
 	}
 
 	// リクエストボディをバインド
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "無効なリクエスト形式です",
-			Code:    http.StatusBadRequest,
-		})
+		h.SendBindingError(c, err)
 		return
 	}
 
 	// 入力値の検証
-	if req.Score1 < 0 || req.Score2 < 0 {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "スコアは0以上である必要があります",
-			Code:    http.StatusBadRequest,
+	if err := req.Validate(); err != nil {
+		h.SendErrorWithCode(c, models.ErrorValidationInvalidFormat, err.Error(), http.StatusBadRequest)
 		})
 		return
 	}

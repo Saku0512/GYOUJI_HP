@@ -33,7 +33,7 @@ func (h *BaseHandler) SendSuccess(c *gin.Context, data interface{}, message stri
 		code = statusCode[0]
 	}
 
-	response := models.NewSuccessResponse(data, message, code)
+	response := models.NewDataResponse(data, message, code)
 	
 	// リクエストIDが設定されている場合は追加
 	if requestID, exists := c.Get("request_id"); exists {
@@ -48,7 +48,7 @@ func (h *BaseHandler) SendSuccess(c *gin.Context, data interface{}, message stri
 // SendError はエラーレスポンスを送信する
 // apiError: APIErrorオブジェクト
 func (h *BaseHandler) SendError(c *gin.Context, apiError *models.APIError) {
-	response := models.NewErrorResponse(apiError.Code, apiError.Message, apiError.StatusCode)
+	response := models.NewErrorResponseUnified(apiError.Code, apiError.Message, apiError.StatusCode)
 	
 	// リクエストIDが設定されている場合は追加
 	if requestID, exists := c.Get("request_id"); exists {

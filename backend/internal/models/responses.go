@@ -15,6 +15,12 @@ type DataResponse[T any] struct {
 	Data T `json:"data,omitempty"` // レスポンスデータ
 }
 
+// SetRequestID はリクエストIDを設定する
+func (r *DataResponse[T]) SetRequestID(requestID string) *DataResponse[T] {
+	r.RequestID = requestID
+	return r
+}
+
 // ListResponse はリストデータを含むレスポンスの統一構造体
 type ListResponse[T any] struct {
 	BaseResponse
@@ -35,11 +41,23 @@ type ErrorResponse struct {
 	Error string `json:"error,omitempty"` // エラーコード
 }
 
+// SetRequestID はリクエストIDを設定する
+func (r *ErrorResponse) SetRequestID(requestID string) *ErrorResponse {
+	r.RequestID = requestID
+	return r
+}
+
 // ValidationErrorResponse はバリデーションエラー専用のレスポンス構造体
 type ValidationErrorResponse struct {
 	BaseResponse
 	Error   string                    `json:"error"`               // エラーコード
 	Details []ValidationErrorDetail   `json:"details"`             // 詳細なバリデーションエラー情報
+}
+
+// SetRequestID はリクエストIDを設定する
+func (r *ValidationErrorResponse) SetRequestID(requestID string) *ValidationErrorResponse {
+	r.RequestID = requestID
+	return r
 }
 
 // PaginationResponse はページネーション情報の統一構造体

@@ -15,39 +15,19 @@ import (
 
 // TournamentHandler はトーナメント関連のHTTPハンドラー
 type TournamentHandler struct {
+	*BaseHandler
 	tournamentService service.TournamentService
 }
 
 // NewTournamentHandler は新しいTournamentHandlerを作成する
 func NewTournamentHandler(tournamentService service.TournamentService) *TournamentHandler {
 	return &TournamentHandler{
+		BaseHandler:       NewBaseHandler(),
 		tournamentService: tournamentService,
 	}
 }
 
-// CreateTournamentRequest はトーナメント作成リクエストの構造体
-type CreateTournamentRequest struct {
-	Sport  string `json:"sport" binding:"required"`
-	Format string `json:"format" binding:"required"`
-}
 
-// UpdateTournamentRequest はトーナメント更新リクエストの構造体
-type UpdateTournamentRequest struct {
-	Format string `json:"format"`
-	Status string `json:"status"`
-}
-
-// SwitchFormatRequest はトーナメント形式切り替えリクエストの構造体
-type SwitchFormatRequest struct {
-	Format string `json:"format" binding:"required"`
-}
-
-// TournamentResponse はトーナメントレスポンスの構造体
-type TournamentResponse struct {
-	Success bool       `json:"success" example:"true"`              // 成功フラグ
-	Message string     `json:"message" example:"トーナメント情報を取得しました"` // メッセージ
-	Data    Tournament `json:"data"`                                // トーナメントデータ
-}
 
 // TournamentListResponse はトーナメント一覧レスポンスの構造体
 type TournamentListResponse struct {
@@ -246,78 +226,46 @@ type TournamentProgress struct {
 // @Failure 500 {object} ErrorResponse "サーバーエラー"
 // @Router /api/tournaments [post]
 func (h *TournamentHandler) CreateTournament(c *gin.Context) {
-	var req CreateTournamentRequest
+	var req models.CreateTournamentRequest
 
 	// リクエストボディをバインド
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "無効なリクエスト形式です",
-			Code:    http.StatusBadRequest,
-		})
+		h.SendBindingError(c, err)
 		return
 	}
 
 	// 入力値の検証
-	if strings.TrimSpace(req.Sport) == "" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "スポーツは必須です",
-			Code:    http.StatusBadRequest,
-		})
-		return
-	}
-
-	if strings.TrimSpace(req.Format) == "" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error:   "Bad Request",
-			Message: "フォーマットは必須です",
-			Code:    http.StatusBadRequest,
-		})
+	if err := req.Validate(); err != nil {
+		h.SendErrorWithCode(c, models.ErrorValidationInvalidFormat, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// トーナメント作成
 	tournament := &models.Tournament{
-		Sport:  req.Sport,
-		Format: req.Format,
+		Sport:  string(req.Sport),
+		Format: string(req.Format),
 		Status: models.TournamentStatusRegistration, // デフォルトステータス
 	}
 	
 	err := h.tournamentService.CreateTournament(context.Background(), tournament)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "既に") {
-			c.JSON(http.StatusConflict, ErrorResponse{
-				Error:   "Conflict",
-				Message: "既にアクティブなトーナメントが存在します",
-				Code:    http.StatusConflict,
-			})
+			h.SendError(c, models.ErrResourceAlreadyExists.WithDetails("tournament", "既にアクティブなトーナメントが存在します"))
 			return
 		}
 		
 		if strings.Contains(err.Error(), "無効な") || strings.Contains(err.Error(), "validation") {
-			c.JSON(http.StatusBadRequest, ErrorResponse{
-				Error:   "Bad Request",
-				Message: err.Error(),
-				Code:    http.StatusBadRequest,
-			})
+			h.SendErrorWithCode(c, models.ErrorValidationInvalidFormat, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Internal Server Error",
-			Message: "トーナメントの作成に失敗しました",
-			Code:    http.StatusInternalServerError,
-		})
+		h.SendInternalServerError(c, "トーナメントの作成に失敗しました")
 		return
 	}
 
 	// 成功レスポンス
-	c.JSON(http.StatusCreated, TournamentResponse{
-		Success: true,
-		Data:    convertToSwaggerTournament(tournament),
-		Message: "トーナメントを作成しました",
-	})
+	tournamentResponse := models.NewTournamentResponse(tournament)
+	h.SendSuccess(c, tournamentResponse, "トーナメントを作成しました", http.StatusCreated)
 }
 
 // GetTournaments は全トーナメント取得エンドポイントハンドラー
@@ -331,21 +279,18 @@ func (h *TournamentHandler) CreateTournament(c *gin.Context) {
 func (h *TournamentHandler) GetTournaments(c *gin.Context) {
 	tournaments, err := h.tournamentService.GetTournaments(context.Background(), 100, 0)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Internal Server Error",
-			Message: "トーナメント一覧の取得に失敗しました",
-			Code:    http.StatusInternalServerError,
-		})
+		h.SendInternalServerError(c, "トーナメント一覧の取得に失敗しました")
 		return
 	}
 
+	// レスポンス用のデータに変換
+	tournamentResponses := make([]*models.TournamentResponse, len(tournaments))
+	for i, tournament := range tournaments {
+		tournamentResponses[i] = models.NewTournamentResponse(tournament)
+	}
+
 	// 成功レスポンス
-	c.JSON(http.StatusOK, TournamentListResponse{
-		Success: true,
-		Data:    convertToSwaggerTournaments(tournaments),
-		Count:   len(tournaments),
-		Message: "トーナメント一覧を取得しました",
-	})
+	h.SendSuccess(c, tournamentResponses, "トーナメント一覧を取得しました")
 }
 
 // GetTournamentBySport はスポーツ別トーナメント取得エンドポイントハンドラー

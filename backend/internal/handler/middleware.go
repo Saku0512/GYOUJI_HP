@@ -88,45 +88,7 @@ func (m *AuthMiddleware) RequireAdmin() gin.HandlerFunc {
 	}
 }
 
-// CORSMiddleware はCORS設定を行うミドルウェア（廃止予定）
-// 新しいコードでは backend/internal/middleware/cors.go の NewCORSMiddleware を使用してください
-func CORSMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	}
-}
-
-// ErrorHandlerMiddleware は統一されたエラーレスポンスを提供するミドルウェア
-// 注意: この関数は廃止予定です。新しい実装では error_middleware.go の ErrorHandlerMiddleware を使用してください
-func ErrorHandlerMiddleware() gin.HandlerFunc {
-	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
-		response := models.NewErrorResponse(
-			models.ErrorSystemUnknownError,
-			"サーバー内部エラーが発生しました",
-			http.StatusInternalServerError,
-		)
-		
-		// リクエストIDを追加
-		if requestID, exists := c.Get("request_id"); exists {
-			if id, ok := requestID.(string); ok {
-				response.SetRequestID(id)
-			}
-		}
-		
-		c.JSON(http.StatusInternalServerError, response)
-		c.Abort()
-	})
-}
 
 // LoggingMiddleware はリクエスト/レスポンスのログを記録するミドルウェア
 func LoggingMiddleware() gin.HandlerFunc {
@@ -145,12 +107,3 @@ func LoggingMiddleware() gin.HandlerFunc {
 	})
 }
 
-// RateLimitMiddleware は認証エンドポイント用のレート制限ミドルウェア（廃止予定）
-// 新しい実装では router パッケージの rateLimitMiddleware を使用してください
-func RateLimitMiddleware() gin.HandlerFunc {
-	// 簡易的なインメモリレート制限（本番環境では Redis 等を使用）
-	return func(c *gin.Context) {
-		// 実装は簡略化し、将来的に Redis ベースのレート制限に置き換える
-		c.Next()
-	}
-}
