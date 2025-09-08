@@ -53,7 +53,8 @@ type TeamStats struct {
 
 // matchService implements MatchService
 type matchService struct {
-	matchRepo repository.MatchRepository
+	matchRepo           repository.MatchRepository
+	notificationService *NotificationService
 }
 
 // NewMatchService creates a new match service
@@ -69,6 +70,12 @@ func (s *matchService) CreateMatch(match *models.Match) error {
 		logger.Error("Failed to create match", "error", err)
 		return NewDatabaseError("failed to create match")
 	}
+
+	// Send real-time notification
+	if s.notificationService != nil {
+		s.notificationService.NotifyMatchUpdate(match, "created")
+	}
+
 	return nil
 }
 
@@ -101,6 +108,12 @@ func (s *matchService) UpdateMatch(match *models.Match) error {
 		logger.Error("Failed to update match", "id", match.ID, "error", err)
 		return NewDatabaseError("failed to update match")
 	}
+
+	// Send real-time notification
+	if s.notificationService != nil {
+		s.notificationService.NotifyMatchUpdate(match, "updated")
+	}
+
 	return nil
 }
 
@@ -197,7 +210,17 @@ func (s *matchService) UpdateMatchResult(matchID int, result models.MatchResult)
 	match.Winner = &result.Winner
 	match.Status = "completed"
 	
-	return s.UpdateMatch(match)
+	if err := s.matchRepo.Update(context.Background(), match); err != nil {
+		logger.Error("Failed to update match result", "id", match.ID, "error", err)
+		return NewDatabaseError("failed to update match result")
+	}
+
+	// Send specific match result notification
+	if s.notificationService != nil {
+		s.notificationService.NotifyMatchResult(match)
+	}
+
+	return nil
 }
 
 // GetMatchStatistics retrieves match statistics for a tournament
@@ -232,4 +255,8 @@ func (s *matchService) GetMatchStatistics(tournamentID int) (*MatchStatistics, e
 	}
 	
 	return stats, nil
+}//
+ SetNotificationService sets the notification service for real-time updates
+func (s *matchService) SetNotificationService(notificationService *NotificationService) {
+	s.notificationService = notificationService
 }

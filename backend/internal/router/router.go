@@ -25,6 +25,8 @@ type Handlers struct {
 	AuthHandler       *handler.AuthHandler
 	TournamentHandler *handler.TournamentHandler
 	MatchHandler      *handler.MatchHandler
+	WebSocketHandler  *handler.WebSocketHandler
+	PollingHandler    *handler.PollingHandler
 }
 
 // NewRouter は新しいルーターを作成する
@@ -32,6 +34,8 @@ func NewRouter(
 	authService service.AuthService,
 	tournamentService service.TournamentService,
 	matchService service.MatchService,
+	wsHandler *handler.WebSocketHandler,
+	pollingHandler *handler.PollingHandler,
 ) *Router {
 	// Ginエンジンを作成
 	engine := gin.New()
@@ -41,6 +45,8 @@ func NewRouter(
 		AuthHandler:       handler.NewAuthHandler(authService),
 		TournamentHandler: handler.NewTournamentHandler(tournamentService),
 		MatchHandler:      handler.NewMatchHandler(matchService),
+		WebSocketHandler:  wsHandler,
+		PollingHandler:    pollingHandler,
 	}
 
 	router := &Router{
@@ -126,6 +132,12 @@ func (r *Router) setupRoutes() {
 	// 認証が必要なルート
 	r.setupProtectedRoutes(apiV1)
 
+	// WebSocketルート
+	r.setupWebSocketRoutes()
+
+	// ポーリングルート
+	r.setupPollingRoutes(apiV1)
+
 	// 後方互換性のための旧APIエンドポイント
 	r.setupLegacyRoutes()
 }
@@ -184,6 +196,49 @@ func (r *Router) setupProtectedRoutes(api *gin.RouterGroup) {
 
 	// 試合関連ルート
 	r.setupMatchRoutes(protected, admin, authMiddleware)
+
+	// WebSocket管理ルート（管理者専用）
+	r.setupWebSocketManagementRoutes(admin)
+}
+
+// setupWebSocketRoutes はWebSocket関連のルートを設定する
+func (r *Router) setupWebSocketRoutes() {
+	// WebSocket接続エンドポイント（認証不要でアクセス、接続後に認証）
+	r.engine.GET("/ws", r.handlers.WebSocketHandler.HandleWebSocket)
+}
+
+// setupWebSocketManagementRoutes はWebSocket管理ルートを設定する（管理者専用）
+func (r *Router) setupWebSocketManagementRoutes(admin *gin.RouterGroup) {
+	websocket := admin.Group("/websocket")
+	{
+		websocket.GET("/stats", r.handlers.WebSocketHandler.GetStats)                    // GET /admin/websocket/stats
+		websocket.GET("/connections", r.handlers.WebSocketHandler.GetConnections)       // GET /admin/websocket/connections
+		websocket.POST("/broadcast", r.handlers.WebSocketHandler.BroadcastMessage)      // POST /admin/websocket/broadcast
+	}
+}
+
+// setupPollingRoutes はポーリング関連のルートを設定する
+func (r *Router) setupPollingRoutes(api *gin.RouterGroup) {
+	// 認証ミドルウェア
+	authMiddleware := middleware.NewAuthMiddleware(r.authService)
+	
+	// 公開ポーリングルート（認証不要）
+	polling := api.Group("/polling")
+	{
+		polling.GET("/config", r.handlers.PollingHandler.GetPollingConfig)                                    // GET /polling/config
+		polling.GET("/:sport/:data_type/check", r.handlers.PollingHandler.CheckUpdates)                      // GET /polling/{sport}/{data_type}/check
+		polling.GET("/:sport/:data_type/latest", r.handlers.PollingHandler.GetLatestData)                    // GET /polling/{sport}/{data_type}/latest
+		polling.POST("/batch/check", r.handlers.PollingHandler.BatchCheckUpdates)                            // POST /polling/batch/check
+	}
+	
+	// 管理者専用ポーリングルート
+	adminPolling := api.Group("/admin/polling")
+	adminPolling.Use(authMiddleware.RequireAuth())
+	adminPolling.Use(authMiddleware.RequireAdmin())
+	{
+		adminPolling.GET("/cache/stats", r.handlers.PollingHandler.GetCacheStats)                            // GET /admin/polling/cache/stats
+		adminPolling.POST("/:sport/:data_type/invalidate", r.handlers.PollingHandler.InvalidateCache)       // POST /admin/polling/{sport}/{data_type}/invalidate
+	}
 }
 
 // setupTournamentRoutes はトーナメント関連のルートを設定する

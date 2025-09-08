@@ -13,10 +13,12 @@ import (
 
 	"backend/internal/config"
 	"backend/internal/database"
+	"backend/internal/handler"
 	"backend/internal/logger"
 	"backend/internal/repository"
 	"backend/internal/router"
 	"backend/internal/service"
+	websocketManager "backend/internal/websocket"
 )
 
 func main() {
@@ -76,13 +78,33 @@ func main() {
 		log.Fatal("管理者ユーザーの初期化に失敗しました", logger.Err(err))
 	}
 
+	// WebSocketマネージャーの初期化
+	wsManager := websocketManager.NewManager()
+	wsManager.Start()
+	defer wsManager.Stop()
+
+	// 通知サービスの初期化
+	notificationService := service.NewNotificationService(wsManager)
+
 	// サービスの初期化
 	authService := service.NewAuthService(userRepo, cfg)
 	tournamentService := service.NewTournamentService(tournamentRepo, teamRepo, matchRepo)
 	matchService := service.NewMatchService(matchRepo)
+	pollingService := service.NewPollingService(tournamentRepo, matchRepo)
+
+	// サービスに通知サービスを設定（リアルタイム更新のため）
+	tournamentService.SetNotificationService(notificationService)
+	matchService.SetNotificationService(notificationService)
+
+	// ポーリングサービスのキャッシュクリーンアップを開始
+	go pollingService.StartCacheCleanup(context.Background())
+
+	// ハンドラーの初期化
+	wsHandler := handler.NewWebSocketHandler(wsManager)
+	pollingHandler := handler.NewPollingHandler(pollingService)
 
 	// ルーターの初期化
-	appRouter := router.NewRouter(authService, tournamentService, matchService)
+	appRouter := router.NewRouter(authService, tournamentService, matchService, wsHandler, pollingHandler)
 
 	// HTTPサーバーの設定
 	server := &http.Server{

@@ -38,9 +38,10 @@ type TournamentProgress struct {
 
 // tournamentService implements TournamentService
 type tournamentService struct {
-	tournamentRepo repository.TournamentRepository
-	teamRepo       repository.TeamRepository
-	matchRepo      repository.MatchRepository
+	tournamentRepo      repository.TournamentRepository
+	teamRepo            repository.TeamRepository
+	matchRepo           repository.MatchRepository
+	notificationService *NotificationService
 }
 
 // NewTournamentService creates a new tournament service
@@ -78,6 +79,11 @@ func (s *tournamentService) CreateTournament(ctx context.Context, tournament *mo
 	if err := s.tournamentRepo.Create(ctx, tournament); err != nil {
 		logger.Error("Failed to create tournament", "error", err)
 		return NewDatabaseError("failed to create tournament")
+	}
+
+	// Send real-time notification
+	if s.notificationService != nil {
+		s.notificationService.NotifyTournamentUpdate(tournament, "created")
 	}
 
 	return nil
@@ -137,6 +143,12 @@ func (s *tournamentService) UpdateTournament(ctx context.Context, id uint, tourn
 		logger.Error("Failed to update tournament", "id", id, "error", err)
 		return NewDatabaseError("failed to update tournament")
 	}
+
+	// Send real-time notification
+	if s.notificationService != nil {
+		s.notificationService.NotifyTournamentUpdate(existing, "updated")
+	}
+
 	return nil
 }
 
@@ -208,6 +220,11 @@ func (s *tournamentService) GenerateBracket(ctx context.Context, tournamentID ui
 	if err := s.tournamentRepo.Update(ctx, tournament); err != nil {
 		logger.Error("Failed to update tournament status", "error", err)
 		return NewDatabaseError("failed to update tournament status")
+	}
+
+	// Send real-time notification for tournament status change
+	if s.notificationService != nil {
+		s.notificationService.NotifyTournamentUpdate(tournament, "status_changed")
 	}
 
 	return nil
@@ -339,4 +356,9 @@ func (s *tournamentService) GetTournamentProgress(sport string) (*TournamentProg
 // Helper function to check if number is power of 2
 func isPowerOfTwo(n int) bool {
 	return n > 0 && (n&(n-1)) == 0
+}
+// Se
+tNotificationService sets the notification service for real-time updates
+func (s *tournamentService) SetNotificationService(notificationService *NotificationService) {
+	s.notificationService = notificationService
 }
