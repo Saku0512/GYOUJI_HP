@@ -2,6 +2,7 @@
 // 統一されたリクエスト・レスポンス処理とエラーハンドリング
 
 import { ErrorCode } from './types.js';
+import { handleAPIError, handleNetworkError } from '../utils/error-response-handler.js';
 
 /**
  * 統一APIクライアント
@@ -41,7 +42,7 @@ export class UnifiedAPIClient {
 
   // リクエストID生成
   generateRequestId() {
-    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 
   // AbortSignal作成
@@ -107,13 +108,27 @@ export class UnifiedAPIClient {
           request_id: requestId
         };
       } else {
-        return {
-          success: false,
+        // エラーレスポンスを統一エラーハンドラーで処理
+        const errorResponse = handleAPIError({
           error: this.mapStatusToErrorCode(response.status),
           message: responseData.message || `HTTP ${response.status}: ${response.statusText}`,
           code: response.status,
           timestamp: new Date().toISOString(),
-          request_id: requestId
+          request_id: requestId,
+          errors: responseData.errors // フィールド別エラーがある場合
+        }, {
+          httpStatus: response.status,
+          endpoint: response.url
+        });
+
+        return {
+          success: false,
+          error: errorResponse.errors[0]?.code || this.mapStatusToErrorCode(response.status),
+          message: errorResponse.errors[0]?.userMessage || responseData.message || `HTTP ${response.status}: ${response.statusText}`,
+          code: response.status,
+          timestamp: new Date().toISOString(),
+          request_id: requestId,
+          errorDetails: errorResponse
         };
       }
     } catch (parseError) {
@@ -132,27 +147,23 @@ export class UnifiedAPIClient {
   handleError(error, requestId) {
     console.error('API Client Error:', error);
     
-    let errorCode;
-    let message;
+    // 統一エラーハンドラーを使用
+    const errorResponse = handleNetworkError(error, {
+      requestId,
+      timestamp: new Date().toISOString()
+    });
 
-    if (error.name === 'AbortError') {
-      errorCode = ErrorCode.SYSTEM_TIMEOUT;
-      message = 'リクエストがタイムアウトしました';
-    } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      errorCode = ErrorCode.SYSTEM_NETWORK_ERROR;
-      message = 'ネットワークエラーが発生しました';
-    } else {
-      errorCode = ErrorCode.SYSTEM_UNKNOWN_ERROR;
-      message = '予期しないエラーが発生しました';
-    }
-
+    // 統一形式のレスポンスに変換
+    const firstError = errorResponse.errors[0];
+    
     return {
       success: false,
-      error: errorCode,
-      message,
+      error: firstError?.code || ErrorCode.SYSTEM_UNKNOWN_ERROR,
+      message: firstError?.userMessage || '予期しないエラーが発生しました',
       code: 0,
       timestamp: new Date().toISOString(),
-      request_id: requestId
+      request_id: requestId,
+      errorDetails: errorResponse
     };
   }
 

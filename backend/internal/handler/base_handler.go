@@ -85,6 +85,26 @@ func (h *BaseHandler) SendValidationError(c *gin.Context, message string, detail
 	c.JSON(http.StatusBadRequest, response)
 }
 
+// SendValidationErrors は統一されたValidationErrorsからレスポンスを送信する
+func (h *BaseHandler) SendValidationErrors(c *gin.Context, errors models.ValidationErrors) {
+	if !errors.HasErrors() {
+		return
+	}
+	
+	details := errors.ToValidationErrorDetails()
+	h.SendValidationError(c, "入力データが無効です", details)
+}
+
+// ValidateRequest はリクエスト構造体のバリデーションを実行し、エラーがあればレスポンスを送信する
+func (h *BaseHandler) ValidateRequest(c *gin.Context, validator func() models.ValidationErrors) bool {
+	errors := validator()
+	if errors.HasErrors() {
+		h.SendValidationErrors(c, errors)
+		return false
+	}
+	return true
+}
+
 // SendBindingError はリクエストバインディングエラーを処理してレスポンスを送信する
 // err: バインディングエラー
 func (h *BaseHandler) SendBindingError(c *gin.Context, err error) {

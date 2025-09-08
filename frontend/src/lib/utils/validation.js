@@ -452,3 +452,24 @@ export function validateCsrfToken(token) {
 
   return { isValid: true, error: null };
 }
+
+// 統一バリデーションシステムとの互換性のための再エクスポート
+export {
+  createLoginValidator,
+  createMatchResultValidator,
+  createTournamentValidator,
+  createTeamNameValidator,
+  FormValidator,
+  FieldValidator,
+  ValidationError,
+  ValidationResult
+} from './unified-validation.js';
+
+export {
+  createRealtimeValidator,
+  createFieldHelper,
+  getValidationClass,
+  getValidationVariant,
+  shouldShowError,
+  createSubmitHandler
+} from './realtime-validation.js';

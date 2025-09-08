@@ -47,9 +47,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 入力値の検証
-	if err := req.Validate(); err != nil {
-		h.SendErrorWithCode(c, models.ErrorValidationInvalidFormat, err.Error(), http.StatusBadRequest)
+	// 統一されたバリデーション実行
+	if !h.ValidateRequest(c, func() models.ValidationErrors {
+		return models.ValidateLoginRequest(&req)
+	}) {
 		return
 	}
 
@@ -93,9 +94,17 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// 入力値の検証
-	if err := req.Validate(); err != nil {
-		h.SendErrorWithCode(c, models.ErrorValidationInvalidFormat, err.Error(), http.StatusBadRequest)
+	// 統一されたバリデーション実行
+	if !h.ValidateRequest(c, func() models.ValidationErrors {
+		validator := models.NewValidator()
+		var errors models.ValidationErrors
+		
+		if err := validator.ValidateRequired(req.Token, "token"); err != nil {
+			errors.AddError(*err)
+		}
+		
+		return errors
+	}) {
 		return
 	}
 

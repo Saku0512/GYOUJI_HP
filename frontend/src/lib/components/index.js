@@ -8,5 +8,10 @@ export { default as Modal } from './Modal.svelte';
 
 // 既存のコンポーネント
 export { default as TournamentBracket } from './TournamentBracket.svelte';
+export { default as ValidationMessage } from './ValidationMessage.svelte';
+export { default as ValidatedInput } from './ValidatedInput.svelte';
+export { default as UnifiedAdminMatchForm } from './UnifiedAdminMatchForm.svelte';
+export { default as UnifiedLoginForm } from './UnifiedLoginForm.svelte';
+export { default as UnifiedErrorDisplay } from './UnifiedErrorDisplay.svelte';
 export { default as MatchCard } from './MatchCard.svelte';
 export { default as AdminMatchForm } from './AdminMatchForm.svelte';

@@ -194,8 +194,6 @@ func (h *MatchHandler) CreateMatch(c *gin.Context) {
 	if err := req.Validate(); err != nil {
 		h.SendErrorWithCode(c, models.ErrorValidationInvalidFormat, err.Error(), http.StatusBadRequest)
 		return
-		})
-		return
 	}
 
 	if strings.TrimSpace(req.Team2) == "" {
@@ -577,7 +575,6 @@ func (h *MatchHandler) SubmitMatchResult(c *gin.Context) {
 	// 入力値の検証
 	if err := req.Validate(); err != nil {
 		h.SendErrorWithCode(c, models.ErrorValidationInvalidFormat, err.Error(), http.StatusBadRequest)
-		})
 		return
 	}
 
