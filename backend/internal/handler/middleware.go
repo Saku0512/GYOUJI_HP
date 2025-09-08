@@ -11,19 +11,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// AuthMiddleware はJWT認証ミドルウェア
+// AuthMiddleware はJWT認証ミドルウェア（廃止予定）
+// 新しいコードでは backend/internal/middleware/auth.go の AuthMiddleware を使用してください
 type AuthMiddleware struct {
 	authService service.AuthService
 }
 
-// NewAuthMiddleware は新しい認証ミドルウェアを作成する
+// NewAuthMiddleware は新しい認証ミドルウェアを作成する（廃止予定）
+// 新しいコードでは middleware.NewAuthMiddleware を使用してください
 func NewAuthMiddleware(authService service.AuthService) *AuthMiddleware {
 	return &AuthMiddleware{
 		authService: authService,
 	}
 }
 
-// RequireAuth はJWTトークン検証を行うミドルウェア
+// RequireAuth はJWTトークン検証を行うミドルウェア（廃止予定）
+// 新しいコードでは middleware.AuthMiddleware.RequireAuth を使用してください
 func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Authorizationヘッダーを取得
@@ -62,7 +65,8 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 	}
 }
 
-// RequireAdmin は管理者専用アクセスを制御するミドルウェア
+// RequireAdmin は管理者専用アクセスを制御するミドルウェア（廃止予定）
+// 新しいコードでは middleware.AuthMiddleware.RequireAdmin を使用してください
 func (m *AuthMiddleware) RequireAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 先にRequireAuth()が実行されていることを前提とする
@@ -74,7 +78,7 @@ func (m *AuthMiddleware) RequireAdmin() gin.HandlerFunc {
 		}
 
 		// 管理者権限をチェック
-		if role != "admin" {
+		if role != models.RoleAdmin {
 			c.Error(models.NewAPIError(models.ErrorAuthForbidden, "管理者権限が必要です", http.StatusForbidden))
 			c.Abort()
 			return
@@ -85,7 +89,7 @@ func (m *AuthMiddleware) RequireAdmin() gin.HandlerFunc {
 }
 
 // CORSMiddleware はCORS設定を行うミドルウェア（廃止予定）
-// 新しい実装では github.com/gin-contrib/cors を使用してください
+// 新しいコードでは backend/internal/middleware/cors.go の NewCORSMiddleware を使用してください
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")

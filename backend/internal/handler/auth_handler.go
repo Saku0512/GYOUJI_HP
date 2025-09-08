@@ -155,24 +155,13 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// 既存のトークンを検証
-	claims, err := h.authService.ValidateToken(req.Token)
+	// 既存のトークンを検証してリフレッシュ
+	newToken, err := h.authService.RefreshToken(req.Token)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{
 			Error:   "Unauthorized",
 			Message: "無効または期限切れのトークンです",
 			Code:    http.StatusUnauthorized,
-		})
-		return
-	}
-
-	// 新しいトークンを生成
-	newToken, err := h.authService.GenerateToken(claims.UserID, claims.Username)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error:   "Internal Server Error",
-			Message: "新しいトークンの生成に失敗しました",
-			Code:    http.StatusInternalServerError,
 		})
 		return
 	}

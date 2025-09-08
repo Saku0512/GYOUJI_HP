@@ -259,7 +259,7 @@ func TestAuthService_ValidateToken(t *testing.T) {
 	}
 	
 	// 期限切れトークンを生成
-	expiredClaims := &Claims{
+	expiredClaims := &JWTClaims{
 		UserID:   1,
 		Username: "admin",
 		Role:     models.RoleAdmin,

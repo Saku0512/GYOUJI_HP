@@ -6,9 +6,9 @@ import (
 	"backend/internal/errors"
 	"backend/internal/handler"
 	"backend/internal/logger"
+	"backend/internal/middleware"
 	"backend/internal/service"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
@@ -70,15 +70,10 @@ func (r *Router) setupMiddleware() {
 	// エラーハンドリングミドルウェア
 	r.engine.Use(errors.ErrorHandlerMiddleware())
 
-	// CORS設定
-	r.engine.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:3300"}, // フロントエンドのURL
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	// 統一されたCORSとセキュリティ設定
+	for _, mw := range middleware.CombinedMiddleware() {
+		r.engine.Use(mw)
+	}
 
 	// レート制限ミドルウェア（認証エンドポイント用）
 	r.engine.Use(r.rateLimitMiddleware())
@@ -172,8 +167,8 @@ func (r *Router) setupAuthRoutes(api *gin.RouterGroup) {
 
 // setupProtectedRoutes は認証が必要なルートを設定する
 func (r *Router) setupProtectedRoutes(api *gin.RouterGroup) {
-	// 認証ミドルウェアを作成
-	authMiddleware := handler.NewAuthMiddleware(r.authService)
+	// 統一された認証ミドルウェアを作成
+	authMiddleware := middleware.NewAuthMiddleware(r.authService)
 
 	// 認証が必要なルート（一般ユーザー）
 	protected := api.Group("/")
@@ -192,7 +187,7 @@ func (r *Router) setupProtectedRoutes(api *gin.RouterGroup) {
 }
 
 // setupTournamentRoutes はトーナメント関連のルートを設定する
-func (r *Router) setupTournamentRoutes(protected *gin.RouterGroup, admin *gin.RouterGroup, authMiddleware *handler.AuthMiddleware) {
+func (r *Router) setupTournamentRoutes(protected *gin.RouterGroup, admin *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware) {
 	// 認証が必要なトーナメント関連ルート（読み取り専用）
 	tournaments := protected.Group("/tournaments")
 	{
@@ -217,7 +212,7 @@ func (r *Router) setupTournamentRoutes(protected *gin.RouterGroup, admin *gin.Ro
 }
 
 // setupMatchRoutes は試合関連のルートを設定する
-func (r *Router) setupMatchRoutes(protected *gin.RouterGroup, admin *gin.RouterGroup, authMiddleware *handler.AuthMiddleware) {
+func (r *Router) setupMatchRoutes(protected *gin.RouterGroup, admin *gin.RouterGroup, authMiddleware *middleware.AuthMiddleware) {
 	// 認証が必要な試合関連ルート（読み取り専用）
 	matches := protected.Group("/matches")
 	{
@@ -298,7 +293,7 @@ func (r *Router) setupLegacyPublicRoutes(api *gin.RouterGroup) {
 
 // setupLegacyProtectedRoutes は旧形式の認証が必要なルートを設定する
 func (r *Router) setupLegacyProtectedRoutes(api *gin.RouterGroup) {
-	// 認証ミドルウェアを作成
+	// 旧式の認証ミドルウェアを使用（後方互換性のため）
 	authMiddleware := handler.NewAuthMiddleware(r.authService)
 
 	// 認証が必要なルート（旧形式）
