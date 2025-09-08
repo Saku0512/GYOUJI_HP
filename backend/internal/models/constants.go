@@ -5,124 +5,64 @@ const (
 	RoleAdmin = "admin"
 )
 
-// スポーツタイプの定数
+// 後方互換性のための文字列定数（非推奨：新しいコードではenum型を使用）
 const (
+	// SportType用の文字列定数（非推奨）
 	SportVolleyball  = "volleyball"
 	SportTableTennis = "table_tennis"
 	SportSoccer      = "soccer"
-)
-
-// トーナメントフォーマットの定数
-const (
+	
+	// TournamentFormat用の文字列定数（非推奨）
 	FormatStandard = "standard"
-	FormatRainy    = "rainy" // 卓球の雨天時フォーマット
-)
-
-// トーナメントステータスの定数
-const (
+	FormatRainy    = "rainy"
+	
+	// TournamentStatus用の文字列定数（非推奨）
 	TournamentStatusRegistration = "registration"
 	TournamentStatusActive       = "active"
 	TournamentStatusCompleted    = "completed"
-)
-
-// 試合ステータスの定数
-const (
+	
+	// MatchStatus用の文字列定数（非推奨）
 	MatchStatusPending   = "pending"
 	MatchStatusCompleted = "completed"
-)
-
-// ラウンド名の定数
-const (
+	
+	// RoundType用の文字列定数（非推奨）
 	Round1stRound     = "1st_round"
 	RoundQuarterfinal = "quarterfinal"
 	RoundSemifinal    = "semifinal"
 	RoundThirdPlace   = "third_place"
 	RoundFinal        = "final"
-	RoundLoserBracket = "loser_bracket" // 卓球の敗者復活戦用
+	RoundLoserBracket = "loser_bracket"
 )
 
-// 有効なスポーツかどうかを判定する
+// 後方互換性のための関数（非推奨：新しいコードではenum型のメソッドを使用）
+
+// IsValidSport は有効なスポーツかどうかを判定する（非推奨）
 func IsValidSport(sport string) bool {
-	validSports := []string{
-		SportVolleyball,
-		SportTableTennis,
-		SportSoccer,
-	}
-	
-	for _, validSport := range validSports {
-		if sport == validSport {
-			return true
-		}
-	}
-	return false
+	return SportType(sport).IsValid()
 }
 
-// 有効なトーナメントフォーマットかどうかを判定する
+// IsValidTournamentFormat は有効なトーナメントフォーマットかどうかを判定する（非推奨）
 func IsValidTournamentFormat(format string) bool {
-	validFormats := []string{
-		FormatStandard,
-		FormatRainy,
-	}
-	
-	for _, validFormat := range validFormats {
-		if format == validFormat {
-			return true
-		}
-	}
-	return false
+	return TournamentFormat(format).IsValid()
 }
 
-// 有効なトーナメントステータスかどうかを判定する
+// IsValidTournamentStatus は有効なトーナメントステータスかどうかを判定する（非推奨）
 func IsValidTournamentStatus(status string) bool {
-	validStatuses := []string{
-		TournamentStatusRegistration,
-		TournamentStatusActive,
-		TournamentStatusCompleted,
-	}
-	
-	for _, validStatus := range validStatuses {
-		if status == validStatus {
-			return true
-		}
-	}
-	return false
+	return TournamentStatus(status).IsValid()
 }
 
-// 有効な試合ステータスかどうかを判定する
+// IsValidMatchStatus は有効な試合ステータスかどうかを判定する（非推奨）
 func IsValidMatchStatus(status string) bool {
-	validStatuses := []string{
-		MatchStatusPending,
-		MatchStatusCompleted,
-	}
-	
-	for _, validStatus := range validStatuses {
-		if status == validStatus {
-			return true
-		}
-	}
-	return false
+	return MatchStatus(status).IsValid()
 }
 
-// 有効なラウンド名かどうかを判定する
+// IsValidRound は有効なラウンド名かどうかを判定する（非推奨）
 func IsValidRound(round string) bool {
-	validRounds := []string{
-		Round1stRound,
-		RoundQuarterfinal,
-		RoundSemifinal,
-		RoundThirdPlace,
-		RoundFinal,
-		RoundLoserBracket,
-	}
-	
-	for _, validRound := range validRounds {
-		if round == validRound {
-			return true
-		}
-	}
-	return false
+	return RoundType(round).IsValid()
 }
 
-// スポーツに応じた有効なラウンドを取得する
+// GetValidRoundsForSport はスポーツに応じた有効なラウンドを取得する（非推奨）
+// 新しいコードではtypes.goのGetValidRoundsForSport関数を使用してください
 func GetValidRoundsForSport(sport string) []string {
 	switch sport {
 	case SportVolleyball:

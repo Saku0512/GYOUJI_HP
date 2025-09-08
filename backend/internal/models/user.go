@@ -15,6 +15,16 @@ type User struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
+// GetCreatedAt はDateTime型で作成日時を返す
+func (u *User) GetCreatedAt() DateTime {
+	return NewDateTime(u.CreatedAt)
+}
+
+// IsAdmin はユーザーが管理者かどうかを返す
+func (u *User) IsAdmin() bool {
+	return u.Role == RoleAdmin
+}
+
 // Validate はユーザーデータの検証を行う
 func (u *User) Validate() error {
 	if strings.TrimSpace(u.Username) == "" {
