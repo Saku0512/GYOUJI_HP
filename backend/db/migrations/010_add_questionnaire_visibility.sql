@@ -1,0 +1,1 @@
+INSERT INTO scoretable_settings (setting_key, setting_value) VALUES ('showQuestionnaireButton', 'false');

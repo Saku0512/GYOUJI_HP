@@ -28,12 +28,12 @@ func NewSettingHandler(s service.SettingService) *SettingHandler {
 // @Failure 500 {object} map[string]string
 // @Router /settings/visibility [get]
 func (h *SettingHandler) GetVisibility(c *gin.Context) {
-	value, err := h.settingService.GetVisibility()
+	settings, err := h.settingService.GetVisibility()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get setting"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get settings"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"showTotalScores": value})
+	c.JSON(http.StatusOK, settings)
 }
 
 // UpdateVisibility godoc
@@ -49,7 +49,8 @@ func (h *SettingHandler) GetVisibility(c *gin.Context) {
 // @Router /settings/visibility [put]
 func (h *SettingHandler) UpdateVisibility(c *gin.Context) {
 	var req struct {
-		ShowTotalScores bool `json:"showTotalScores"`
+		ShowTotalScores         *bool `json:"showTotalScores"`
+		ShowQuestionnaireButton *bool `json:"showQuestionnaireButton"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -57,12 +58,21 @@ func (h *SettingHandler) UpdateVisibility(c *gin.Context) {
 		return
 	}
 
-	if err := h.settingService.UpdateVisibility(req.ShowTotalScores); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update setting"})
-		return
+	if req.ShowTotalScores != nil {
+		if err := h.settingService.UpdateVisibility("showTotalScores", *req.ShowTotalScores); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update showTotalScores setting"})
+			return
+		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Setting updated successfully"})
+	if req.ShowQuestionnaireButton != nil {
+		if err := h.settingService.UpdateVisibility("showQuestionnaireButton", *req.ShowQuestionnaireButton); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update showQuestionnaireButton setting"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Settings updated successfully"})
 }
 
 // GetWeather godoc

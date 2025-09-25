@@ -50,6 +50,7 @@
 	let scores = [];
 	let scoresLoading = false;
 	let showTotalScores = true; // Default value
+	let showQuestionnaireButton = false;
 
 	// Attendance
 	let attendanceScores = [];
@@ -122,6 +123,7 @@
 			if (res.ok) {
 				const data = await res.json();
 				showTotalScores = data.showTotalScores;
+				showQuestionnaireButton = data.showQuestionnaireButton;
 			}
 		} catch (e) {
 			console.error('Failed to fetch visibility settings', e);
@@ -140,6 +142,20 @@
 			console.error('Failed to update visibility settings', e);
 			// Optionally, revert the UI change
 			showTotalScores = !newValue;
+		}
+	}
+
+	async function updateQuestionnaireButtonVisibility(newValue) {
+		try {
+			await fetch('/api/settings/visibility', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include',
+				body: JSON.stringify({ showQuestionnaireButton: newValue })
+			});
+		} catch (e) {
+			console.error('Failed to update questionnaire button visibility settings', e);
+			showQuestionnaireButton = !newValue;
 		}
 	}
 
@@ -688,6 +704,9 @@
 			{#if userRole === 'superroot' || userRole === 'admin' || userRole === 'admin_relay'}
 				<button class:active={activeTab === 'input'} on:click={handleInputTabClick} class="dashboard-tab-btn">試合結果入力</button>
 			{/if}
+			{#if showQuestionnaireButton}
+				<a href="https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=XYP-cpVeEkWK4KezivJfyAklshGgL0hOqHb1R7C4GBpUQVFBQUtPMDNMRzJOOEJQU0c3R0xDMlFXMi4u" target="_blank" rel="noopener noreferrer" class="dashboard-tab-btn">振り返りアンケート</a>
+			{/if}
 		</nav>
 		<button class="logout-btn" on:click={logout}>ログアウト</button>
 	</header>
@@ -771,6 +790,14 @@
                 	</label>
                 	<span>{showTotalScores ? '表示中' : '非表示'}</span>
             	</div>
+				<div class="visibility-switcher">
+					<span>振り返りアンケートボタンの表示:</span>
+					<label class="switch">
+						<input type="checkbox" bind:checked={showQuestionnaireButton} on:change={() => updateQuestionnaireButtonVisibility(showQuestionnaireButton)}>
+						<span class="slider"></span>
+					</label>
+					<span>{showQuestionnaireButton ? '表示中' : '非表示'}</span>
+				</div>
         	{/if}
         	{#if scoresLoading}
             	<p>読み込み中...</p>

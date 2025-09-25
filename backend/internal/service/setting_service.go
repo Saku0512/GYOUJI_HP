@@ -9,8 +9,8 @@ import (
 
 // SettingService は設定に関するビジネスロジックのインターフェースです。
 type SettingService interface {
-	GetVisibility() (bool, error)
-	UpdateVisibility(value bool) error
+	GetVisibility() (map[string]bool, error)
+	UpdateVisibility(key string, value bool) error
 	GetWeather() (string, error)
 	UpdateWeather(value string) error
 }
@@ -26,17 +26,33 @@ func NewSettingService(repo repository.SettingRepository) SettingService {
 }
 
 // GetVisibility はスコア表示設定を取得します。
-func (s *settingService) GetVisibility() (bool, error) {
-	value, err := s.repo.GetSettingVisibility("showTotalScores")
-	if err != nil {
-		return false, err
+func (s *settingService) GetVisibility() (map[string]bool, error) {
+	settings := make(map[string]bool)
+
+	keys := []string{"showTotalScores", "showQuestionnaireButton"}
+
+	for _, key := range keys {
+		value, err := s.repo.GetSettingVisibility(key)
+		if err != nil {
+			// キーが見つからない場合、デフォルト値として false を使用
+			settings[key] = false
+		} else {
+			boolValue, err := strconv.ParseBool(value)
+			if err != nil {
+				// パースに失敗した場合もデフォルト値として false を使用
+				settings[key] = false
+			} else {
+				settings[key] = boolValue
+			}
+		}
 	}
-	return strconv.ParseBool(value)
+
+	return settings, nil
 }
 
 // UpdateVisibility はスコア表示設定を更新します。
-func (s *settingService) UpdateVisibility(value bool) error {
-	return s.repo.UpdateSettingVisibility("showTotalScores", strconv.FormatBool(value))
+func (s *settingService) UpdateVisibility(key string, value bool) error {
+	return s.repo.UpdateSettingVisibility(key, strconv.FormatBool(value))
 }
 
 // GetWeather は天候設定を取得します。
