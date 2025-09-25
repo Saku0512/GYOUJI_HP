@@ -619,26 +619,39 @@
         { name: 'リレーBブロック得点', key: 'relay_B_score' },
         { name: 'リレーボーナス得点', key: 'relay_bonus_score' },
         { name: '合計(春スポ体合計点除く)', key: 'total_excluding_init' },
+        { name: '今回の順位', key: 'current_rank_excluding_init' },
         { name: '合計(春スポ体合計点含む)', key: 'total_including_init' },
-        { name: '現在の順位', key: 'current_rank' },
+        { name: '総合順位', key: 'current_rank' },
     ];
 
 	function calculateRanks(scoresData) {
     	if (!scoresData || scoresData.length === 0) {
         	return [];
     	}
-    	const sorted = [...scoresData].sort((a, b) => b.total_including_init - a.total_including_init);
-    	const rankMap = new Map();
-    	let rank = 1;
-    	for (let i = 0; i < sorted.length; i++) {
-        	if (i > 0 && sorted[i].total_including_init < sorted[i - 1].total_including_init) {
-            	rank = i + 1;
+    	const sortedByTotal = [...scoresData].sort((a, b) => b.total_including_init - a.total_including_init);
+    	const rankMapTotal = new Map();
+    	let rankTotal = 1;
+    	for (let i = 0; i < sortedByTotal.length; i++) {
+        	if (i > 0 && sortedByTotal[i].total_including_init < sortedByTotal[i - 1].total_including_init) {
+            	rankTotal = i + 1;
         	}
-        	rankMap.set(sorted[i].class_name, rank);
+        	rankMapTotal.set(sortedByTotal[i].class_name, rankTotal);
     	}
+
+    	const sortedByEvent = [...scoresData].sort((a, b) => b.total_excluding_init - a.total_excluding_init);
+    	const rankMapEvent = new Map();
+    	let rankEvent = 1;
+    	for (let i = 0; i < sortedByEvent.length; i++) {
+        	if (i > 0 && sortedByEvent[i].total_excluding_init < sortedByEvent[i - 1].total_excluding_init) {
+            	rankEvent = i + 1;
+        	}
+        	rankMapEvent.set(sortedByEvent[i].class_name, rankEvent);
+    	}
+
     	return scoresData.map(s => ({
         	...s,
-        	current_rank: rankMap.get(s.class_name)
+        	current_rank: rankMapTotal.get(s.class_name),
+			current_rank_excluding_init: rankMapEvent.get(s.class_name),
     	}));
 	}
 
@@ -750,7 +763,7 @@
                 	<div class="score-category-column">
                     	<div class="score-header">得点項目</div>
                     	{#each scoreCategories as category, i}
-                        	{#if showTotalScores  || (category.key !== 'total_excluding_init' && category.key !== 'total_including_init' && category.key !== 'current_rank')}
+                        	{#if showTotalScores  || !['total_excluding_init', 'total_including_init', 'current_rank', 'current_rank_excluding_init'].includes(category.key)}
                             	<div class="score-cell" class:odd-row={i % 2 === 0}><b>{category.name}</b></div>
                         	{/if}
                     	{/each}
@@ -760,9 +773,9 @@
                         	<div class="score-column">
                             	<div class="score-header">{s.class_name}</div>
                             	{#each scoreCategories as category, i}
-                                	{#if showTotalScores  || (category.key !== 'total_excluding_init' && category.key !== 'total_including_init' && category.key !== 'current_rank')}
-                                    	<div class="score-cell" class:odd-row={i % 2 === 0} class:rank-cell={category.key === 'current_rank'}>
-                                        	{#if category.key === 'current_rank'}
+                                	{#if showTotalScores  || !['total_excluding_init', 'total_including_init', 'current_rank', 'current_rank_excluding_init'].includes(category.key)}
+                                    	<div class="score-cell" class:odd-row={i % 2 === 0} class:rank-cell={category.key.includes('_rank')}>
+                                        	{#if category.key.includes('_rank')}
                                             	<span class="rank-badge rank-{s[category.key]}">{s[category.key]}位</span>
                                         	{:else}
                                             	{s[category.key]}
