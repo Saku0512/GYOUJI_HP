@@ -229,12 +229,27 @@
 	async function fetchScores() {
 		scoresLoading = true;
 		const classOrder = ['1-1', '1-2', '1-3', 'IS2', 'IT2', 'IE2', 'IS3', 'IT3', 'IE3', 'IS4', 'IT4', 'IE4', 'IS5', 'IT5', 'IE5', '専・教'];
+		const questionnaireScores = {
+            '1-1': 5, '1-2': 5, '1-3': 5,
+            'IS2': 4, 'IT2': 8, 'IE2': 2,
+            'IS3': 5, 'IT3': 5, 'IE3': 5,
+            'IS4': 9, 'IT4': 2, 'IE4': 4,
+            'IS5': 2, 'IT5': 1, 'IE5': 4
+        };
 		try {
 			const res = await fetch('/api/score', {
 				credentials: 'include'
 			});
 			if (res.ok) {
 				let fetchedScores = await res.json();
+				fetchedScores = fetchedScores.map(s => {
+                    const questionnaire_score = questionnaireScores[s.class_name] || 0;
+                    return {
+                        ...s,
+                        questionnaire_score: questionnaire_score,
+                        total_including_init: s.total_including_init + questionnaire_score
+                    };
+                });
 				fetchedScores.sort((a, b) => {
                     const indexA = classOrder.indexOf(a.class_name);
                     const indexB = classOrder.indexOf(b.class_name);
@@ -601,6 +616,7 @@
 
 	const scoreCategories = [
         { name: '春スポ体合計点', key: 'init_score' },
+        { name: '春スポアンケート点', key: 'questionnaire_score' },
         { name: '出席点', key: 'attendance_score' },
         { name: 'バレーボール1勝点', key: 'volleyball1_score' },
         { name: 'バレーボール2勝点', key: 'volleyball2_score' },
